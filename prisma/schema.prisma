@@ -1,0 +1,29 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model ClothingItem {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  imageUrl    String
+  category    String
+  brand       String?
+  price       Float?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  swipes      Swipe[]
+}
+
+model Swipe {
+  id             String       @id @default(cuid())
+  clothingItemId String
+  clothingItem   ClothingItem @relation(fields: [clothingItemId], references: [id])
+  direction      String
+  createdAt      DateTime     @default(now())
+}

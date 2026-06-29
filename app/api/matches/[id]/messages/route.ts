@@ -1,0 +1,46 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { getSession } from "@/lib/auth";
+
+export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
+
+  const match = await prisma.match.findUnique({ where: { id } });
+  if (!match || (match.userAId !== session.id && match.userBId !== session.id))
+    return NextResponse.json({ error: "No encontrado" }, { status: 404 });
+
+  const other = await prisma.user.findUnique({
+    where: { id: match.userAId === session.id ? match.userBId : match.userAId },
+    select: { id: true, name: true, avatar: true },
+  });
+
+  const messages = await prisma.message.findMany({
+    where: { matchId: id },
+    include: { sender: { select: { id: true, name: true, avatar: true } } },
+    orderBy: { createdAt: "asc" },
+  });
+
+  return NextResponse.json({ match, other, messages });
+}
+
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
+
+  const { text } = await req.json();
+  if (!text?.trim()) return NextResponse.json({ error: "Texto vacío" }, { status: 400 });
+
+  const match = await prisma.match.findUnique({ where: { id } });
+  if (!match || (match.userAId !== session.id && match.userBId !== session.id))
+    return NextResponse.json({ error: "No encontrado" }, { status: 404 });
+
+  const message = await prisma.message.create({
+    data: { matchId: id, senderId: session.id, text: text.trim() },
+    include: { sender: { select: { id: true, name: true, avatar: true } } },
+  });
+
+  return NextResponse.json(message, { status: 201 });
+}

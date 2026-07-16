@@ -1,8 +1,9 @@
 import jwt from "jsonwebtoken";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { prisma } from "./prisma";
 
-const SECRET = process.env.JWT_SECRET ?? "ropinder-dev-secret-change-in-prod";
+const SECRET = process.env.JWT_SECRET!;
+if (!SECRET) throw new Error("JWT_SECRET env var is required");
 const COOKIE = "ropinder_token";
 
 export function signToken(userId: string) {
@@ -20,7 +21,12 @@ export function verifyToken(token: string): string | null {
 
 export async function getSession() {
   const jar = await cookies();
-  const token = jar.get(COOKIE)?.value;
+  let token = jar.get(COOKIE)?.value;
+  if (!token) {
+    const hdrs = await headers();
+    const auth = hdrs.get("authorization");
+    if (auth?.startsWith("Bearer ")) token = auth.slice("Bearer ".length);
+  }
   if (!token) return null;
   const userId = verifyToken(token);
   if (!userId) return null;
@@ -29,8 +35,15 @@ export async function getSession() {
     select: {
       id: true, name: true, email: true, avatar: true, bio: true,
       isPremium: true, credits: true, balance: true, latitude: true, longitude: true,
+      role: true, bannedAt: true,
     },
   });
+}
+
+export async function requireAdmin() {
+  const session = await getSession();
+  if (!session || session.role !== "ADMIN") return null;
+  return session;
 }
 
 export function setTokenCookie(token: string) {

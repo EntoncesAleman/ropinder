@@ -19,14 +19,19 @@ model User {
   isPremium Boolean @default(false)
   credits   Int     @default(5)
   balance   Float   @default(0.0)
+  role      String  @default("USER")
+  bannedAt  DateTime?
   createdAt DateTime @default(now())
 
-  clothingItems ClothingItem[]
-  swipes        Swipe[]
-  matchesAsA    Match[]       @relation("UserA")
-  matchesAsB    Match[]       @relation("UserB")
-  messagesSent  Message[]
-  transactions  Transaction[]
+  clothingItems    ClothingItem[]
+  swipes           Swipe[]
+  matchesAsA       Match[]       @relation("UserA")
+  matchesAsB       Match[]       @relation("UserB")
+  messagesSent     Message[]
+  transactions     Transaction[]
+  reportsMade      Report[]      @relation("ReportsMade")
+  reportsReceived  Report[]      @relation("ReportsReceived")
+  reportsReviewed  Report[]      @relation("ReportsReviewed")
 }
 
 model ClothingItem {
@@ -47,6 +52,7 @@ model ClothingItem {
   createdAt   DateTime @default(now())
   user        User     @relation(fields: [userId], references: [id])
   swipes      Swipe[]
+  reports     Report[]
 }
 
 model Swipe {
@@ -69,6 +75,7 @@ model Match {
   userA     User      @relation("UserA", fields: [userAId], references: [id])
   userB     User      @relation("UserB", fields: [userBId], references: [id])
   messages  Message[]
+  reports   Report[]
 }
 
 model Message {
@@ -82,12 +89,35 @@ model Message {
 }
 
 model Transaction {
-  id        String   @id @default(cuid())
-  userId    String
-  amount    Float
-  type      String
-  status    String   @default("PENDING")
-  meta      String   @default("{}")
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id])
+  id          String    @id @default(cuid())
+  userId      String
+  amount      Float
+  type        String
+  status      String    @default("PENDING")
+  meta        String    @default("{}")
+  availableAt DateTime?
+  withdrawnAt DateTime?
+  createdAt   DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id])
+}
+
+model Report {
+  id             String    @id @default(cuid())
+  reporterId     String
+  reportedUserId String?
+  itemId         String?
+  matchId        String?
+  reason         String
+  details        String    @default("")
+  status         String    @default("PENDING")
+  resolution     String    @default("")
+  reviewedById   String?
+  createdAt      DateTime  @default(now())
+  reviewedAt     DateTime?
+
+  reporter     User          @relation("ReportsMade", fields: [reporterId], references: [id])
+  reportedUser User?         @relation("ReportsReceived", fields: [reportedUserId], references: [id])
+  reviewedBy   User?         @relation("ReportsReviewed", fields: [reviewedById], references: [id])
+  item         ClothingItem? @relation(fields: [itemId], references: [id])
+  match        Match?        @relation(fields: [matchId], references: [id])
 }

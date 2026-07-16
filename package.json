@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "postinstall": "prisma generate",
-    "db:seed": "npx tsx prisma/seed.ts"
+    "db:seed": "npx tsx prisma/seed.ts",
+    "admin:promote": "npx tsx scripts/make-admin.ts"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.2",

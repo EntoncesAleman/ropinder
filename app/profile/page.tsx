@@ -12,15 +12,35 @@ interface ClothingItem {
   imageUrl: string; price: number | null; isBumped: boolean; createdAt: string;
 }
 
+interface WithdrawInfo { withdrawable: number; pending: number; pendingUntil: string | null }
+
 export default function ProfilePage() {
   const { user, loading, logout, refresh } = useAuth();
   const router = useRouter();
   const [items, setItems] = useState<ClothingItem[]>([]);
   const [bumping, setBumping] = useState<string | null>(null);
+  const [withdrawInfo, setWithdrawInfo] = useState<WithdrawInfo | null>(null);
+  const [withdrawing, setWithdrawing] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) router.push("/login");
   }, [user, loading, router]);
+
+  const fetchWithdrawInfo = useCallback(async () => {
+    const res = await fetch("/api/transactions/withdraw");
+    if (res.ok) setWithdrawInfo(await res.json());
+  }, []);
+
+  useEffect(() => {
+    if (user) fetchWithdrawInfo();
+  }, [user, fetchWithdrawInfo]);
+
+  async function handleWithdraw() {
+    setWithdrawing(true);
+    const res = await fetch("/api/transactions/withdraw", { method: "POST" });
+    if (res.ok) { await refresh(); await fetchWithdrawInfo(); }
+    setWithdrawing(false);
+  }
 
   const fetchItems = useCallback(async () => {
     if (!user) return;
@@ -84,6 +104,27 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
+      {withdrawInfo && (withdrawInfo.withdrawable > 0 || withdrawInfo.pending > 0) && (
+        <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 mb-6 flex flex-col gap-2">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-slate-500">Disponible para retirar</span>
+            <span className="font-bold text-slate-700">${withdrawInfo.withdrawable.toFixed(2)}</span>
+          </div>
+          {withdrawInfo.pending > 0 && (
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-400">En espera (retención de 48hs)</span>
+              <span className="font-semibold text-slate-400">${withdrawInfo.pending.toFixed(2)}</span>
+            </div>
+          )}
+          {withdrawInfo.withdrawable > 0 && (
+            <button onClick={handleWithdraw} disabled={withdrawing}
+              className="mt-1 text-xs bg-slate-700 text-white font-semibold px-3 py-2 rounded-full hover:bg-slate-800 transition disabled:opacity-60">
+              {withdrawing ? "Retirando..." : `Retirar $${withdrawInfo.withdrawable.toFixed(2)}`}
+            </button>
+          )}
+        </div>
+      )}
 
       {user.isPremium ? (
         <div className="flex items-center gap-2 bg-gradient-to-r from-amber-400 to-orange-400 text-white rounded-2xl px-4 py-3 mb-6">

@@ -17,7 +17,7 @@ export default function SignupPage() {
     e.preventDefault();
     setLoading(true); setError("");
     const res = await fetch("/api/auth/signup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
-    const data = await res.json();
+    const data = await res.json().catch(() => ({ error: "Error de conexión con el servidor" }));
     if (!res.ok) { setError(data.error); setLoading(false); return; }
     await refresh();
     router.push("/");

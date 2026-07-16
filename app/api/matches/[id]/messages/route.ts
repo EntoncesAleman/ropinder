@@ -22,7 +22,15 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     orderBy: { createdAt: "asc" },
   });
 
-  return NextResponse.json({ match, other, messages });
+  const escrowTx = await prisma.transaction.findFirst({
+    where: { type: { in: ["ESCROW_HOLD", "ESCROW_RELEASE"] }, meta: { contains: `"matchId":"${id}"` } },
+    orderBy: { createdAt: "desc" },
+  });
+  const escrow = escrowTx
+    ? { ...escrowTx, meta: JSON.parse(escrowTx.meta) as { buyerId?: string; sellerId?: string } }
+    : null;
+
+  return NextResponse.json({ match, other, messages, escrow });
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

@@ -1,0 +1,20 @@
+# Ropinder
+
+> Ropinder es una app tipo Tinder para intercambiar y vender ropa de segunda mano cerca tuyo. Los usuarios publican prendas, hacen match por swipe mutuo con otros usuarios, y coordinan el intercambio o la venta por chat. Los pagos en dinero quedan en custodia (escrow) de la plataforma hasta que el comprador confirma la recepción de la prenda.
+
+## Qué es
+
+- Plataforma de intercambio y venta de ropa usada, con mecánica de swipe (like/dislike) sobre prendas publicadas por otros usuarios cercanos.
+- El match ocurre cuando dos usuarios se gustan mutuamente sus prendas (o una prenda y una oferta).
+- Incluye chat entre usuarios con match, sistema de pago en custodia, calificaciones de usuario a usuario, y reportes moderados por un equipo de administración.
+
+## Páginas públicas
+
+- [Inicio de sesión](/login)
+- [Registro](/signup)
+- [Premium](/premium) — plan de suscripción con swipes ilimitados
+
+## Notas para agentes / crawlers
+
+- La mayor parte de la funcionalidad (feed de prendas, chat, perfil) requiere una cuenta y no es indexable públicamente.
+- Ropinder no es una tienda tradicional: es un marketplace peer-to-peer con custodia de pagos, no ventas directas de la plataforma.

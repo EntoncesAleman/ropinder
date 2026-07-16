@@ -4,14 +4,14 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Upload, X, ImagePlus, CheckCircle, Zap } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-
-const CONDITIONS = ["Nuevo", "Muy bueno", "Bueno", "Regular"];
-const CATEGORIES = ["Ropa", "Calzado", "Accesorios", "Deportivo", "Formal"];
+import { BRANDS, CATEGORIES, CONDITIONS, sizesForCategory } from "@/lib/catalog";
 
 export default function UploadPage() {
   const router = useRouter();
   const { user, refresh } = useAuth();
   const [form, setForm] = useState({ title: "", description: "", size: "", brand: "", condition: "Bueno", category: "Ropa", price: "" });
+  const [customBrand, setCustomBrand] = useState("");
+  const [customSize, setCustomSize] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -43,10 +43,13 @@ export default function UploadPage() {
     const uploadRes = await fetch("/api/upload", { method: "POST", body: fd });
     const { url } = await uploadRes.json();
 
+    const brand = form.brand === "Otra" ? customBrand.trim() : form.brand;
+    const size = form.size === "Otro" ? customSize.trim() : form.size;
+
     const res = await fetch("/api/clothes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, imageUrl: url }),
+      body: JSON.stringify({ ...form, brand, size, imageUrl: url }),
     });
 
     if (res.ok) {
@@ -111,21 +114,36 @@ export default function UploadPage() {
         <textarea placeholder="Descripción (opcional)" value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
           className="border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300 resize-none h-20" />
 
+        <select value={form.category} onChange={(e) => setForm((p) => ({ ...p, category: e.target.value, size: "" }))}
+          className="border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300 bg-white">
+          {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+        </select>
+
         <div className="grid grid-cols-2 gap-3">
-          <input placeholder="Talle (M, 38...)" value={form.size} onChange={(e) => setForm((p) => ({ ...p, size: e.target.value }))}
-            className="border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300" required />
-          <input placeholder="Marca" value={form.brand} onChange={(e) => setForm((p) => ({ ...p, brand: e.target.value }))}
-            className="border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300" required />
+          <select value={form.size} onChange={(e) => setForm((p) => ({ ...p, size: e.target.value }))} required
+            className="border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300 bg-white">
+            <option value="" disabled>Talle</option>
+            {sizesForCategory(form.category).map((s) => <option key={s}>{s}</option>)}
+          </select>
+          <select value={form.brand} onChange={(e) => setForm((p) => ({ ...p, brand: e.target.value }))} required
+            className="border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300 bg-white">
+            <option value="" disabled>Marca</option>
+            {BRANDS.map((b) => <option key={b}>{b}</option>)}
+          </select>
         </div>
+
+        {form.size === "Otro" && (
+          <input placeholder="Especificá el talle" value={customSize} onChange={(e) => setCustomSize(e.target.value)}
+            className="border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300" required />
+        )}
+        {form.brand === "Otra" && (
+          <input placeholder="Especificá la marca" value={customBrand} onChange={(e) => setCustomBrand(e.target.value)}
+            className="border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300" required />
+        )}
 
         <select value={form.condition} onChange={(e) => setForm((p) => ({ ...p, condition: e.target.value }))}
           className="border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300 bg-white">
           {CONDITIONS.map((c) => <option key={c}>{c}</option>)}
-        </select>
-
-        <select value={form.category} onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))}
-          className="border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300 bg-white">
-          {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
         </select>
 
         <div className="relative">

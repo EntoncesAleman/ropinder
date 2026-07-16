@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useState, useCallback } from "rea
 export interface AuthUser {
   id: string; name: string; email: string; avatar: string; bio: string;
   isPremium: boolean; credits: number; balance: number; latitude: number; longitude: number;
-  role: string; bannedAt: string | null;
+  role: string; bannedAt: string | null; ratingAvg: number; ratingCount: number;
 }
 
 interface AuthCtx {

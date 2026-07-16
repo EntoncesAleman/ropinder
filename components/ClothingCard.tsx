@@ -10,7 +10,7 @@ export interface ClothingItemWithDistance {
   condition: string;
   imageUrl: string;
   distance: number;
-  user: { id: string; name: string; avatar: string };
+  user: { id: string; name: string; avatar: string; ratingAvg?: number; ratingCount?: number };
 }
 
 interface Props {
@@ -83,6 +83,12 @@ export function ClothingCard({ item, onSwipe, isTop }: Props) {
                 className="w-5 h-5 rounded-full object-cover border border-white"
               />
               <span>{item.user.name}</span>
+              {!!item.user.ratingCount && (
+                <span className="flex items-center gap-0.5 ml-1">
+                  <Star size={11} fill="currentColor" className="text-amber-400" />
+                  {item.user.ratingAvg?.toFixed(1)}
+                </span>
+              )}
             </div>
           </div>
         </div>

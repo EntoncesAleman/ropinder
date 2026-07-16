@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Heart, X, RefreshCw, Shirt, Zap } from "lucide-react";
+import { Heart, X, RefreshCw, Shirt, Zap, Search } from "lucide-react";
 import { ClothingCard, ClothingItemWithDistance } from "./ClothingCard";
 import { DistanceSlider } from "./DistanceSlider";
 import { MatchModal } from "./MatchModal";
@@ -19,22 +19,30 @@ export function SwipeScreen() {
   const [matchId, setMatchId] = useState<string | null>(null);
   const [gone, setGone] = useState(false);
   const [noCredits, setNoCredits] = useState(false);
+  const [query, setQuery] = useState("");
+  const [search, setSearch] = useState("");
 
   const fetchItems = useCallback(async () => {
     if (geoLoading || !user) return;
     setLoading(true);
     setNoCredits(false);
     try {
-      const res = await fetch(`/api/clothes?lat=${coords.lat}&lng=${coords.lng}&radius=${radius}&userId=${user.id}`);
+      const q = search ? `&q=${encodeURIComponent(search)}` : "";
+      const res = await fetch(`/api/clothes?lat=${coords.lat}&lng=${coords.lng}&radius=${radius}&userId=${user.id}${q}`);
       const data = await res.json();
       setItems(Array.isArray(data) ? data : []);
       setGone(false);
     } finally {
       setLoading(false);
     }
-  }, [coords, radius, geoLoading, user]);
+  }, [coords, radius, geoLoading, user, search]);
 
   useEffect(() => { fetchItems(); }, [fetchItems]);
+
+  function handleSearchSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSearch(query.trim());
+  }
 
   async function handleSwipe(itemId: string, type: "LIKE" | "DISLIKE") {
     if (!user) return;
@@ -84,6 +92,17 @@ export function SwipeScreen() {
           </div>
         </div>
       </header>
+
+      <form onSubmit={handleSearchSubmit} className="w-full max-w-sm px-4 mb-3">
+        <div className="relative">
+          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-300" />
+          <input
+            value={query} onChange={(e) => setQuery(e.target.value)}
+            placeholder="Buscar por producto o marca..."
+            className="w-full bg-white border border-slate-200 rounded-full pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300"
+          />
+        </div>
+      </form>
 
       <div className="w-full max-w-sm px-4 mb-3">
         <DistanceSlider value={radius} onChange={(v) => setRadius(v)} />

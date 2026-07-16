@@ -9,6 +9,7 @@ export async function GET(request: NextRequest) {
   const lng = parseFloat(searchParams.get("lng") ?? "0");
   const radius = parseFloat(searchParams.get("radius") ?? "10");
   const userId = searchParams.get("userId") ?? "";
+  const q = searchParams.get("q")?.trim() ?? "";
 
   const swipedIds = userId
     ? (await prisma.swipe.findMany({ where: { swiperId: userId }, select: { targetItemId: true } })).map((s) => s.targetItemId)
@@ -18,8 +19,9 @@ export async function GET(request: NextRequest) {
     where: {
       userId: userId ? { not: userId } : undefined,
       id: swipedIds.length > 0 ? { notIn: swipedIds } : undefined,
+      OR: q ? [{ title: { contains: q } }, { brand: { contains: q } }, { category: { contains: q } }] : undefined,
     },
-    include: { user: { select: { id: true, name: true, avatar: true } } },
+    include: { user: { select: { id: true, name: true, avatar: true, ratingAvg: true, ratingCount: true } } },
     orderBy: [{ isBumped: "desc" }, { bumpedAt: "desc" }, { createdAt: "desc" }],
   });
 

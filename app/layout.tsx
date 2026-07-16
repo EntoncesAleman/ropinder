@@ -7,8 +7,18 @@ import { AppNav } from "@/components/AppNav";
 const geist = Geist({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Ropinder – Tinder para ropa",
-  description: "Intercambiá ropa cerca tuyo con swipes",
+  metadataBase: new URL("https://ropinder.vercel.app"),
+  title: "Ropinder – Intercambiá y vendé ropa cerca tuyo",
+  description: "Publicá tus prendas, hacé match por swipe con gente cerca tuyo, y coordiná el intercambio o la venta con pago protegido en custodia.",
+  keywords: ["ropa usada", "intercambio de ropa", "venta de ropa", "segunda mano", "marketplace ropa", "swipe ropa"],
+  openGraph: {
+    title: "Ropinder – Intercambiá y vendé ropa cerca tuyo",
+    description: "Publicá tus prendas, hacé match por swipe con gente cerca tuyo, y coordiná el intercambio o la venta con pago protegido en custodia.",
+    type: "website",
+    locale: "es_AR",
+    siteName: "Ropinder",
+  },
+  robots: { index: true, follow: true },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

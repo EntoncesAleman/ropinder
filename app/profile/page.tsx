@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Zap, DollarSign, Crown, LogOut, Rocket, Plus, Shirt } from "lucide-react";
+import { Zap, DollarSign, Crown, LogOut, Rocket, Plus, Shirt, Star } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import Link from "next/link";
 import Image from "next/image";
@@ -81,6 +81,11 @@ export default function ProfilePage() {
               {user.isPremium && <Crown size={14} className="text-amber-500" />}
             </div>
             <p className="text-xs text-slate-400">{user.email}</p>
+            {user.ratingCount > 0 && (
+              <p className="text-xs text-amber-600 flex items-center gap-1 mt-0.5">
+                <Star size={11} fill="currentColor" /> {user.ratingAvg.toFixed(1)} ({user.ratingCount} calificaciones)
+              </p>
+            )}
           </div>
         </div>
         <button onClick={handleLogout} className="text-slate-400 hover:text-rose-500 transition p-2">

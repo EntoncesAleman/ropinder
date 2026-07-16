@@ -13,8 +13,10 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
 
   const other = await prisma.user.findUnique({
     where: { id: match.userAId === session.id ? match.userBId : match.userAId },
-    select: { id: true, name: true, avatar: true },
+    select: { id: true, name: true, avatar: true, ratingAvg: true, ratingCount: true },
   });
+
+  const myRating = await prisma.rating.findUnique({ where: { matchId_raterId: { matchId: id, raterId: session.id } } });
 
   const messages = await prisma.message.findMany({
     where: { matchId: id },
@@ -30,7 +32,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     ? { ...escrowTx, meta: JSON.parse(escrowTx.meta) as { buyerId?: string; sellerId?: string } }
     : null;
 
-  return NextResponse.json({ match, other, messages, escrow });
+  return NextResponse.json({ match, other, messages, escrow, myRating });
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

@@ -4,32 +4,33 @@ ROPINDER — INSTRUCCIONES DE ADMINISTRACIÓN
 CÓMO ENTRAR COMO ADMIN
 -----------------------
 No existe un usuario/contraseña de admin separado — es tu misma cuenta normal
-de Ropinder, con un rol especial. Nadie es admin por default (ni siquiera
-las cuentas de prueba).
+de Ropinder, con un rol especial.
 
-1. Registrate normalmente en /signup con tu email y contraseña, como
-   cualquier usuario.
-2. Desde tu compu, en la carpeta del proyecto, corré:
+El único admin actual es tomas.aleman@gmail.com (la cuenta demo@ropinder.com
+que existía antes fue dada de baja). Ingresá normalmente en
+ropinder.vercel.app/login con ese email y tu contraseña, y te va a llevar
+directo a ropinder.vercel.app/admin.
 
-     npm run admin:promote -- tu-email@ejemplo.com
-
-   Esto te da rol ADMIN en la base de datos. No se puede hacer desde la
-   web por seguridad (evita que cualquiera se auto-declare admin).
-3. Iniciá sesión normalmente en ropinder.vercel.app/login con ese email.
-4. Andá a ropinder.vercel.app/admin — ahí vas a ver el panel de moderación.
-
-Si alguna vez necesitás promover a otra persona (un moderador de
-confianza), es el mismo comando con su email.
+Formas de sumar otro admin (por ejemplo un moderador de confianza):
+1. Desde el panel /admin, sección "Otorgar / quitar admin": poné el email
+   de la persona (tiene que haberse registrado antes en /signup) y tocá
+   "Dar admin". Podés quitárselo del mismo lugar con "Quitar".
+2. O, desde tu compu, con el mismo efecto:
+     npm run admin:promote -- email@ejemplo.com
 
 QUÉ PUEDE HACER EL ADMIN (/admin)
 -----------------------------------
-- Ver la cola de reportes (usuarios reportando otros usuarios o prendas).
+- Ver la cola de reportes (usuarios reportando otros usuarios o prendas,
+  incluye motivo "Imagen generada por IA o engañosa").
 - Resolver un reporte (marcarlo resuelto) o descartarlo.
 - Suspender (banear) o reactivar una cuenta de usuario. Un usuario
   suspendido no puede iniciar sesión hasta que lo reactivés.
 - Reembolsar al comprador de un match reportado: si el pago ya se le
   liberó al vendedor, el sistema le saca la plata de su saldo (balance)
   y se la devuelve al comprador automáticamente.
+- Otorgar o quitar el rol admin a cualquier email registrado.
+- Resetear la contraseña de cualquier usuario (para casos de soporte,
+  cuenta bloqueada, etc.) sin necesitar su contraseña actual.
 
 CÓMO FUNCIONA LA PLATA (custodia / escrow)
 --------------------------------------------
@@ -38,14 +39,72 @@ CÓMO FUNCIONA LA PLATA (custodia / escrow)
    ESCROW_HOLD, estado PENDING).
 2. Cuando el comprador confirma que recibió la prenda ("Confirmar
    Recepción"), la plata se libera al saldo (balance) del vendedor
-   (ESCROW_RELEASE).
-3. Esa plata liberada queda retenida 48 horas antes de poder retirarse
-   (evita que alguien cobre y desaparezca antes de que se resuelva un
-   reclamo). Se puede ver el desglose "disponible" vs "en espera" en
-   /profile.
+   (ESCROW_RELEASE), menos la comisión de la plataforma (8% estándar,
+   5% si el vendedor es Premium).
+3. Esa plata liberada queda retenida 48 horas antes de poder retirarse.
+   Entre las 48hs y las 72hs se puede retirar pero con un fee del 5%;
+   pasadas las 72hs, sin cargo. Se ve el desglose en /profile.
 4. Si algo sale mal y se reporta el match, vos como admin podés
-   reembolsar al comprador desde /admin — si la plata ya se había
-   liberado al vendedor, se la sacamos de su balance automáticamente.
+   reembolsar al comprador desde /admin — le devolvemos el monto TOTAL
+   que pagó (no el neto que recibió el vendedor), y si ya se le había
+   liberado al vendedor, se lo sacamos de su balance.
+
+PREMIUM — PLANES
+--------------------
+Ahora hay 4 duraciones en vez de solo mensual: 1 día, 1 semana, 1 mes y
+1 año (precios de referencia en ARS en lib/pricing.ts — hay que ajustarlos
+según inflación real antes de cobrar en serio). Comprar un plan mientras
+ya tenés Premium activo extiende la fecha de vencimiento en vez de
+reiniciarla. El plan mensual y el anual incluyen la insignia de
+verificado; el diario y el semanal no.
+
+CUENTA DE USUARIO
+--------------------
+Los usuarios ahora pueden desde /profile:
+- Cambiar su nombre de usuario (tiene que ser único) y foto de perfil.
+- Cargar un número de teléfono (opcional).
+- Cambiar su contraseña (pidiendo la actual).
+Todo esto también aplica a tu cuenta de admin — no hay nada especial
+ahí, es el mismo /profile.
+
+REGISTRO — VERIFICACIÓN POR MAIL Y ANTI-BOT
+------------------------------------------------
+El registro ahora es en dos pasos: se pide un código de 6 dígitos al
+mail antes de crear la cuenta. Mientras no conectemos un proveedor de
+mail real (ver más abajo), el código se muestra en pantalla en modo
+prueba — no se manda ningún mail de verdad todavía.
+
+Anti-bot: hay un campo trampa (honeypot) invisible para humanos que
+delata bots que completan todos los campos, y un chequeo de que no se
+mande el formulario en menos de 2 segundos desde que se abrió (los bots
+suelen ser instantáneos). Además, no se puede pedir más de 3 códigos
+para el mismo mail en 15 minutos.
+
+FILTRO DE IMÁGENES GENERADAS POR IA
+----------------------------------------
+No existe una forma confiable y gratuita de detectar automáticamente si
+una foto fue generada por IA — los detectores reales (Hive, Sightengine,
+etc.) son servicios pagos con su propia cuenta/API key, y ninguno es
+100% preciso. Por ahora el control es manual: agregamos "Imagen generada
+por IA o engañosa" como motivo de reporte, tanto en el chat como en cada
+prenda individual del modo tienda, así vos como admin revisás los casos
+marcados en la cola de reportes. Si en algún momento querés el filtro
+automático, avisame y conectamos un servicio de detección.
+
+TÉRMINOS Y CONDICIONES
+---------------------------
+Hay una página en /terms con los términos (responsabilidad limitada,
+cómo funciona el reembolso, suspensión de cuentas, etc.). El registro
+ahora exige tildar un checkbox de aceptación antes de poder crear la
+cuenta, y guardamos la fecha exacta en que cada usuario aceptó
+(termsAcceptedAt) como respaldo.
+
+IMPORTANTE: este texto lo redacté yo (IA), no un abogado. Cubre lo
+básico de un marketplace P2P, pero como Ropinder retiene dinero de
+terceros en custodia (escrow), es MUY recomendable que un abogado
+argentino lo revise — el manejo de fondos de terceros puede tener
+implicancias regulatorias (BCRA, normativa de proveedores de servicios
+de pago) que un texto genérico no resuelve por sí solo.
 
 IMPORTANTE — BASE DE DATOS DE PRODUCCIÓN
 -------------------------------------------
@@ -56,36 +115,41 @@ con eso al probar cosas — no es un entorno de prueba aislado.
 
 Si en algún momento se agregan columnas o tablas nuevas al
 prisma/schema.prisma, hay que sincronizar Turso a mano corriendo el
-script correspondiente en scripts/ (sync-admin-schema-turso.ts,
-sync-escrow-schema-turso.ts, sync-rating-schema-turso.ts son ejemplos
-ya usados). Son todos aditivos (ALTER TABLE / CREATE TABLE), no borran
-nada.
+script correspondiente en scripts/ (todos los scripts sync-*-turso.ts
+son aditivos: ALTER TABLE / CREATE TABLE, nunca borran nada).
 
 PAGOS REALES (MercadoPago) — PENDIENTE
 ------------------------------------------
-Hoy el "Pagar" del chat es un cobro simulado (no mueve plata real).
-Para cobrar de verdad hace falta:
+Hoy el "Pagar" del chat y las compras de Premium/créditos son un cobro
+simulado (no mueve plata real). Para cobrar de verdad hace falta:
 1. Crear una cuenta de vendedor/negocio en MercadoPago
    (https://www.mercadopago.com.ar).
 2. Sacar el Access Token de producción desde el panel de desarrolladores.
 3. Pasarme esas credenciales (como variables de entorno, nunca en el
    código) para conectar el checkout real.
 
+MAIL REAL PARA VERIFICACIÓN — PENDIENTE
+------------------------------------------
+Para que el código de verificación del registro se mande por mail de
+verdad (y no se muestre en pantalla), hace falta conectar un proveedor:
+Resend (más simple, gratis hasta 3000 mails/mes) o Gmail SMTP con una
+contraseña de aplicación. Avisame cuál preferís y las credenciales.
+
 IDEAS PARA SEGUIR SUMANDO
 ----------------------------
-- Notificaciones push (match nuevo, mensaje nuevo, reporte resuelto).
-- Favoritos / wishlist de prendas.
-- "Modo tienda" para vendedores con muchas prendas (perfil tipo catálogo).
-- Verificación de identidad / insignia de vendedor confiable (paga).
-- Fee de retiro (cobrar un % cuando alguien saca su saldo).
-- Comisión por transacción liberada desde la custodia (la forma más
-  directa de generar ingresos, ya que el escrow ya existe).
+- Push notifications reales (hoy hay un centro de notificaciones dentro
+  de la app, pero notificaciones push nativas necesitan Firebase).
+- Filtro automático de imágenes de IA (necesita un servicio pago).
+- Chat de soporte / contacto directo con el equipo.
+- Historial de compras/ventas exportable.
 
 FORMAS DE GANAR PLATA CON LA APP
 ------------------------------------
-- Comisión sobre cada transacción liberada desde la custodia (%).
-- Suscripción Premium (ya existe) — swipes ilimitados.
-- Bump / destacado de prendas (ya existe) — pagar por visibilidad.
-- Fee de retiro de saldo.
-- Insignia de vendedor verificado (paga).
-- Espacio publicitario para marcas/boutiques dentro del feed.
+- Comisión sobre cada transacción liberada desde la custodia (8%
+  estándar, 5% Premium) — ya implementado.
+- Suscripción Premium (día/semana/mes/año) — ya implementado.
+- Bump / destacado de prendas — ya implementado.
+- Insignia de vendedor verificado (paga, o incluida en Premium
+  mensual/anual) — ya implementado.
+- Fee de retiro entre 48hs y 72hs (5%) — ya implementado.
+- Espacio publicitario para marcas/boutiques dentro del feed — pendiente.

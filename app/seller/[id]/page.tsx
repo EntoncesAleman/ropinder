@@ -2,7 +2,7 @@
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowLeft, Star, BadgeCheck, Store, Rocket, Heart } from "lucide-react";
+import { ArrowLeft, Star, BadgeCheck, Store, Rocket, Heart, Flag } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import Image from "next/image";
 import Link from "next/link";
@@ -16,6 +16,7 @@ export default function SellerPage({ params }: { params: Promise<{ id: string }>
   const router = useRouter();
   const [data, setData] = useState<{ seller: Seller; items: Item[] } | null>(null);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [reportedItems, setReportedItems] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!loading && !user) { router.push("/login"); return; }
@@ -41,6 +42,15 @@ export default function SellerPage({ params }: { params: Promise<{ id: string }>
       method: isFav ? "DELETE" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ itemId }),
+    });
+  }
+
+  async function reportItem(itemId: string) {
+    if (!confirm("¿Reportar esta prenda (ej: imagen generada por IA o engañosa)?")) return;
+    setReportedItems((prev) => new Set(prev).add(itemId));
+    await fetch("/api/reports", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reportedUserId: data?.seller.id, itemId, reason: "Imagen generada por IA o engañosa" }),
     });
   }
 
@@ -87,6 +97,10 @@ export default function SellerPage({ params }: { params: Promise<{ id: string }>
               <button onClick={() => toggleFavorite(item.id)}
                 className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/90 flex items-center justify-center shadow">
                 <Heart size={13} className={favorites.has(item.id) ? "text-rose-500" : "text-slate-400"} fill={favorites.has(item.id) ? "currentColor" : "none"} />
+              </button>
+              <button onClick={() => reportItem(item.id)} disabled={reportedItems.has(item.id)}
+                className="absolute bottom-2 right-2 w-7 h-7 rounded-full bg-white/90 flex items-center justify-center shadow disabled:opacity-40">
+                <Flag size={12} className="text-slate-400" />
               </button>
             </div>
             <div className="p-2.5">

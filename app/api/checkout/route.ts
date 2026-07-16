@@ -15,8 +15,14 @@ export async function POST(req: NextRequest) {
 
   const updates: Record<string, unknown> = {};
   if (pack.credits > 0) updates.credits = { increment: pack.credits };
-  if ("premium" in pack && pack.premium) updates.isPremium = true;
   if ("verified" in pack && pack.verified) { updates.verified = true; updates.verifiedAt = new Date(); }
+
+  if ("premium" in pack && pack.premium) {
+    const current = await prisma.user.findUnique({ where: { id: session.id }, select: { premiumUntil: true, isPremium: true } });
+    const base = current?.isPremium && current.premiumUntil && current.premiumUntil > new Date() ? current.premiumUntil : new Date();
+    updates.isPremium = true;
+    updates.premiumUntil = new Date(base.getTime() + pack.days * 24 * 60 * 60 * 1000);
+  }
 
   await prisma.user.update({ where: { id: session.id }, data: updates });
 
@@ -32,7 +38,7 @@ export async function POST(req: NextRequest) {
 
   const updated = await prisma.user.findUnique({
     where: { id: session.id },
-    select: { credits: true, balance: true, isPremium: true, verified: true },
+    select: { credits: true, balance: true, isPremium: true, premiumUntil: true, verified: true },
   });
 
   return NextResponse.json({ ok: true, transaction: tx, user: updated });

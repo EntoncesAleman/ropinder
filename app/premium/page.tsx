@@ -11,9 +11,15 @@ const CREDIT_PACKS = [
   { id: "credits_100", label: "100 créditos", price: "$15.000", desc: "Mejor valor", color: "from-emerald-500 to-teal-500" },
 ];
 
+const PREMIUM_PLANS = [
+  { id: "premium_daily", label: "1 día", price: "$1.500", desc: "Para probar" },
+  { id: "premium_weekly", label: "1 semana", price: "$4.500", desc: "Uso puntual" },
+  { id: "premium_monthly", label: "1 mes", price: "$7.999", desc: "Incluye insignia verificada", popular: true },
+  { id: "premium_yearly", label: "1 año", price: "$69.999", desc: "Incluye insignia verificada · ahorrás vs. 12 meses" },
+];
+
 const PREMIUM_FEATURES = [
   "Swipes ilimitados",
-  "Insignia de verificado incluida",
   "Comisión reducida al 5% en tus ventas (vs. 8% estándar)",
   "Tus prendas aparecen primero en la búsqueda",
 ];
@@ -60,39 +66,49 @@ export default function PremiumPage() {
         )}
       </div>
 
-      {/* Premium */}
-      <motion.div whileTap={{ scale: 0.98 }} className="relative rounded-2xl p-px bg-gradient-to-r from-amber-400 to-orange-500 shadow-md mb-4">
-        <div className="bg-white rounded-2xl p-4">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <Crown size={18} className="text-amber-500" />
-              <span className="font-bold text-slate-800">Premium mensual</span>
-            </div>
-            <span className="font-bold text-slate-700 text-sm">$7.999/mes</span>
-          </div>
-          <ul className="flex flex-col gap-1 mb-3">
-            {PREMIUM_FEATURES.map((f) => (
-              <li key={f} className="flex items-start gap-1.5 text-xs text-slate-500">
-                <CheckCircle size={12} className="text-emerald-500 mt-0.5 flex-shrink-0" /> {f}
-              </li>
-            ))}
-          </ul>
-          <AnimatePresence mode="wait">
-            {success === "premium_monthly" ? (
-              <motion.div key="success" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} className="flex justify-center">
-                <CheckCircle size={22} className="text-emerald-500" />
-              </motion.div>
-            ) : user?.isPremium ? (
-              <div className="text-center text-xs font-semibold text-amber-600">Ya sos Premium ✓</div>
-            ) : (
-              <motion.button key="btn" onClick={() => handleBuy("premium_monthly")} disabled={loading && selected === "premium_monthly"}
-                className="w-full flex items-center justify-center gap-1.5 text-white text-xs font-semibold py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 hover:opacity-90 transition disabled:opacity-60">
-                <CreditCard size={13} /> {loading && selected === "premium_monthly" ? "..." : "Hacerme Premium"}
-              </motion.button>
-            )}
-          </AnimatePresence>
+      {/* Premium plans */}
+      <div className="rounded-2xl p-4 bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100 mb-4">
+        <div className="flex items-center gap-2 mb-2">
+          <Crown size={18} className="text-amber-500" />
+          <span className="font-bold text-slate-800">Premium</span>
+          {user?.isPremium && user.premiumUntil && (
+            <span className="text-[11px] text-amber-700 font-semibold ml-auto">
+              Activo hasta {new Date(user.premiumUntil).toLocaleDateString("es-AR")}
+            </span>
+          )}
         </div>
-      </motion.div>
+        <ul className="flex flex-col gap-1 mb-3">
+          {PREMIUM_FEATURES.map((f) => (
+            <li key={f} className="flex items-start gap-1.5 text-xs text-slate-500">
+              <CheckCircle size={12} className="text-emerald-500 mt-0.5 flex-shrink-0" /> {f}
+            </li>
+          ))}
+        </ul>
+        <div className="grid grid-cols-2 gap-2">
+          {PREMIUM_PLANS.map((plan) => (
+            <div key={plan.id} className={`relative bg-white rounded-xl p-3 border ${plan.popular ? "border-amber-300" : "border-slate-100"}`}>
+              {plan.popular && (
+                <div className="absolute -top-2 left-2 bg-amber-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full">Popular</div>
+              )}
+              <p className="text-xs font-bold text-slate-800">{plan.label}</p>
+              <p className="text-sm font-extrabold text-slate-700">{plan.price}</p>
+              <p className="text-[10px] text-slate-400 mb-2 leading-tight">{plan.desc}</p>
+              <AnimatePresence mode="wait">
+                {success === plan.id ? (
+                  <motion.div key="success" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} className="flex justify-center">
+                    <CheckCircle size={16} className="text-emerald-500" />
+                  </motion.div>
+                ) : (
+                  <motion.button key="btn" onClick={() => handleBuy(plan.id)} disabled={loading && selected === plan.id}
+                    className="w-full text-white text-[11px] font-semibold py-1.5 rounded-lg bg-gradient-to-r from-amber-400 to-orange-500 hover:opacity-90 transition disabled:opacity-60">
+                    {loading && selected === plan.id ? "..." : "Elegir"}
+                  </motion.button>
+                )}
+              </AnimatePresence>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* Verified badge standalone */}
       {!user?.verified && (

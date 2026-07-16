@@ -154,6 +154,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
             >
               <option value="">Elegí un motivo...</option>
               <option value="Prenda no coincide con la publicación">Prenda no coincide con la publicación</option>
+              <option value="Imagen generada por IA o engañosa">Imagen generada por IA o engañosa</option>
               <option value="No responde / no entrega">No responde / no entrega</option>
               <option value="Comportamiento inapropiado">Comportamiento inapropiado</option>
               <option value="Posible estafa">Posible estafa</option>

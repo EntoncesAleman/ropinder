@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Zap, DollarSign, Crown, LogOut, Rocket, Plus, Shirt, Star, Pencil, BadgeCheck, Store } from "lucide-react";
+import { Zap, DollarSign, Crown, LogOut, Rocket, Plus, Shirt, Star, Pencil, BadgeCheck, Store, Lock, FileText } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import Link from "next/link";
 import Image from "next/image";
@@ -26,9 +26,16 @@ export default function ProfilePage() {
   const [withdrawing, setWithdrawing] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
   const [editError, setEditError] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSaved, setPasswordSaved] = useState(false);
+  const [savingPassword, setSavingPassword] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) router.push("/login");
@@ -85,8 +92,23 @@ export default function ProfilePage() {
 
   function startEditing() {
     setEditName(user?.name ?? "");
+    setEditPhone(user?.phone ?? "");
     setEditError("");
     setEditing(true);
+  }
+
+  async function handleChangePassword() {
+    setSavingPassword(true);
+    setPasswordError("");
+    const res = await fetch("/api/profile/password", {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    const data = await res.json();
+    if (!res.ok) { setPasswordError(data.error); setSavingPassword(false); return; }
+    setCurrentPassword(""); setNewPassword(""); setPasswordSaved(true);
+    setSavingPassword(false);
+    setTimeout(() => { setPasswordSaved(false); setChangingPassword(false); }, 1500);
   }
 
   async function handleAvatarChange(file: File) {
@@ -104,7 +126,7 @@ export default function ProfilePage() {
     setSavingProfile(true);
     setEditError("");
     const res = await fetch("/api/profile", {
-      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: editName }),
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: editName, phone: editPhone }),
     });
     const data = await res.json();
     if (!res.ok) { setEditError(data.error); setSavingProfile(false); return; }
@@ -130,7 +152,9 @@ export default function ProfilePage() {
           <div>
             {editing ? (
               <div className="flex flex-col gap-1.5">
-                <input value={editName} onChange={(e) => setEditName(e.target.value)}
+                <input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Nombre de usuario"
+                  className="border border-slate-200 rounded-lg px-2 py-1 text-sm w-40 focus:outline-none focus:ring-2 focus:ring-rose-300" />
+                <input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="Teléfono (opcional)"
                   className="border border-slate-200 rounded-lg px-2 py-1 text-sm w-40 focus:outline-none focus:ring-2 focus:ring-rose-300" />
                 {editError && <p className="text-xs text-rose-500">{editError}</p>}
                 <div className="flex gap-2">
@@ -151,6 +175,7 @@ export default function ProfilePage() {
                   </button>
                 </div>
                 <p className="text-xs text-slate-400">{user.email}</p>
+                {user.phone && <p className="text-xs text-slate-400">{user.phone}</p>}
                 {user.ratingCount > 0 && (
                   <p className="text-xs text-amber-600 flex items-center gap-1 mt-0.5">
                     <Star size={11} fill="currentColor" /> {user.ratingAvg.toFixed(1)} ({user.ratingCount} calificaciones)
@@ -275,6 +300,36 @@ export default function ProfilePage() {
           ))}
         </div>
       )}
+
+      <div className="mt-8 pt-6 border-t border-slate-100">
+        <h3 className="font-bold text-slate-800 mb-3">Configuración</h3>
+
+        {!changingPassword ? (
+          <button onClick={() => setChangingPassword(true)} className="flex items-center gap-2 text-sm text-slate-600 hover:text-rose-500 mb-3">
+            <Lock size={15} /> Cambiar contraseña
+          </button>
+        ) : (
+          <div className="bg-slate-50 rounded-2xl p-4 mb-3 flex flex-col gap-2">
+            <input type="password" placeholder="Contraseña actual" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)}
+              className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300" />
+            <input type="password" placeholder="Contraseña nueva (mín. 6 caracteres)" value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
+              className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300" />
+            {passwordError && <p className="text-xs text-rose-500">{passwordError}</p>}
+            {passwordSaved && <p className="text-xs text-emerald-600">Contraseña actualizada ✓</p>}
+            <div className="flex gap-2">
+              <button onClick={handleChangePassword} disabled={savingPassword || !currentPassword || newPassword.length < 6}
+                className="text-xs bg-rose-500 text-white font-semibold px-3 py-1.5 rounded-full disabled:opacity-50">
+                {savingPassword ? "..." : "Guardar"}
+              </button>
+              <button onClick={() => { setChangingPassword(false); setPasswordError(""); }} className="text-xs text-slate-400 px-3 py-1.5">Cancelar</button>
+            </div>
+          </div>
+        )}
+
+        <Link href="/terms" className="flex items-center gap-2 text-sm text-slate-600 hover:text-rose-500">
+          <FileText size={15} /> Términos y condiciones
+        </Link>
+      </div>
     </div>
   );
 }

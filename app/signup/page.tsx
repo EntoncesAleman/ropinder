@@ -16,9 +16,11 @@ export default function SignupPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [formRenderedAt] = useState(() => Date.now());
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   async function handleRequestCode(e: React.FormEvent) {
     e.preventDefault();
+    if (!acceptedTerms) { setError("Tenés que aceptar los Términos y Condiciones"); return; }
     setLoading(true); setError("");
     const res = await fetch("/api/auth/signup/request-code", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -36,7 +38,7 @@ export default function SignupPage() {
     setLoading(true); setError("");
     const res = await fetch("/api/auth/signup/verify", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, code }),
+      body: JSON.stringify({ ...form, code, acceptedTerms }),
     });
     const data = await res.json().catch(() => ({ error: "Error de conexión con el servidor" }));
     if (!res.ok) { setError(data.error); setLoading(false); return; }
@@ -67,8 +69,14 @@ export default function SignupPage() {
               className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300" required minLength={6} />
             {/* Honeypot — hidden from real users, bots that auto-fill every field will trip it */}
             <input type="text" name="website" tabIndex={-1} autoComplete="off" style={{ position: "absolute", left: "-9999px", opacity: 0 }} aria-hidden="true" />
+            <label className="flex items-start gap-2 text-xs text-slate-500">
+              <input type="checkbox" checked={acceptedTerms} onChange={(e) => setAcceptedTerms(e.target.checked)}
+                className="mt-0.5 accent-rose-500" />
+              Acepto los{" "}
+              <Link href="/terms" target="_blank" className="text-rose-500 hover:underline">Términos y Condiciones</Link>
+            </label>
             {error && <p className="text-rose-500 text-sm text-center">{error}</p>}
-            <motion.button whileTap={{ scale: 0.97 }} type="submit" disabled={loading}
+            <motion.button whileTap={{ scale: 0.97 }} type="submit" disabled={loading || !acceptedTerms}
               className="w-full bg-rose-500 text-white font-semibold py-3 rounded-xl hover:bg-rose-600 transition disabled:opacity-60">
               {loading ? "Enviando código..." : "Continuar"}
             </motion.button>

@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ShieldAlert, Ban, Undo2, Check, X } from "lucide-react";
+import { ShieldAlert, Ban, Undo2, Check, X, UserCog, KeyRound } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface Report {
@@ -32,6 +32,13 @@ export default function AdminPage() {
   const [reports, setReports] = useState<Report[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [promoteEmail, setPromoteEmail] = useState("");
+  const [promoteMsg, setPromoteMsg] = useState("");
+  const [promoteBusy, setPromoteBusy] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetPassword, setResetPassword] = useState("");
+  const [resetMsg, setResetMsg] = useState("");
+  const [resetBusy, setResetBusy] = useState(false);
 
   useEffect(() => {
     if (loading) return;
@@ -69,6 +76,32 @@ export default function AdminPage() {
     setBusyId(null);
   }
 
+  async function handlePromote(role: "ADMIN" | "USER") {
+    setPromoteBusy(true);
+    setPromoteMsg("");
+    const res = await fetch("/api/admin/promote", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: promoteEmail.trim(), role }),
+    });
+    const data = await res.json();
+    setPromoteMsg(res.ok ? `${data.user.email} ahora es ${role}` : data.error);
+    if (res.ok) setPromoteEmail("");
+    setPromoteBusy(false);
+  }
+
+  async function handleResetPassword() {
+    setResetBusy(true);
+    setResetMsg("");
+    const res = await fetch("/api/admin/reset-password", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: resetEmail.trim(), newPassword: resetPassword }),
+    });
+    const data = await res.json();
+    setResetMsg(res.ok ? "Contraseña actualizada ✓" : data.error);
+    if (res.ok) { setResetEmail(""); setResetPassword(""); }
+    setResetBusy(false);
+  }
+
   async function toggleBan(userId: string, banned: boolean) {
     setBusyId(userId);
     const res = await fetch(`/api/admin/users/${userId}/ban`, {
@@ -94,6 +127,34 @@ export default function AdminPage() {
       </div>
 
       {error && <p className="text-xs text-rose-500 mb-4">{error}</p>}
+
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-4">
+        <p className="text-xs font-bold text-slate-600 flex items-center gap-1.5 mb-2"><UserCog size={13} /> Otorgar / quitar admin</p>
+        <div className="flex gap-2">
+          <input value={promoteEmail} onChange={(e) => setPromoteEmail(e.target.value)} placeholder="email@ejemplo.com"
+            className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-rose-300" />
+          <button onClick={() => handlePromote("ADMIN")} disabled={promoteBusy || !promoteEmail.trim()}
+            className="text-xs bg-slate-700 text-white font-semibold px-2.5 py-1.5 rounded-lg disabled:opacity-50">Dar admin</button>
+          <button onClick={() => handlePromote("USER")} disabled={promoteBusy || !promoteEmail.trim()}
+            className="text-xs bg-slate-100 text-slate-600 font-semibold px-2.5 py-1.5 rounded-lg disabled:opacity-50">Quitar</button>
+        </div>
+        {promoteMsg && <p className="text-[11px] text-slate-500 mt-1.5">{promoteMsg}</p>}
+      </div>
+
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-6">
+        <p className="text-xs font-bold text-slate-600 flex items-center gap-1.5 mb-2"><KeyRound size={13} /> Resetear contraseña de un usuario</p>
+        <div className="flex flex-col gap-2">
+          <input value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} placeholder="email@ejemplo.com"
+            className="border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-rose-300" />
+          <div className="flex gap-2">
+            <input value={resetPassword} onChange={(e) => setResetPassword(e.target.value)} placeholder="Contraseña nueva (mín. 6)" type="text"
+              className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-rose-300" />
+            <button onClick={handleResetPassword} disabled={resetBusy || !resetEmail.trim() || resetPassword.length < 6}
+              className="text-xs bg-slate-700 text-white font-semibold px-2.5 py-1.5 rounded-lg disabled:opacity-50">Resetear</button>
+          </div>
+        </div>
+        {resetMsg && <p className="text-[11px] text-slate-500 mt-1.5">{resetMsg}</p>}
+      </div>
 
       <h2 className="font-semibold text-slate-700 text-sm mb-3">Pendientes ({pending.length})</h2>
       {pending.length === 0 ? (

@@ -30,15 +30,25 @@ export async function getSession() {
   if (!token) return null;
   const userId = verifyToken(token);
   if (!userId) return null;
-  return prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      id: true, name: true, email: true, avatar: true, bio: true,
-      isPremium: true, credits: true, balance: true, latitude: true, longitude: true,
-      role: true, bannedAt: true, ratingAvg: true, ratingCount: true,
-      verified: true, emailVerified: true,
-    },
-  });
+
+  const select = {
+    id: true, name: true, email: true, avatar: true, bio: true, phone: true,
+    isPremium: true, premiumUntil: true, credits: true, balance: true, latitude: true, longitude: true,
+    role: true, bannedAt: true, ratingAvg: true, ratingCount: true,
+    verified: true, emailVerified: true,
+  } as const;
+
+  const user = await prisma.user.findUnique({ where: { id: userId }, select });
+  if (!user) return null;
+
+  // Lazily expire premium instead of running a cron: the first read after
+  // premiumUntil has passed flips it back to false.
+  if (user.isPremium && user.premiumUntil && user.premiumUntil < new Date()) {
+    await prisma.user.update({ where: { id: userId }, data: { isPremium: false } });
+    user.isPremium = false;
+  }
+
+  return user;
 }
 
 export async function requireAdmin() {

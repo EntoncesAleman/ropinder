@@ -14,9 +14,11 @@ model User {
   password  String
   avatar    String  @default("https://i.pravatar.cc/150?img=70")
   bio       String  @default("")
+  phone     String  @default("")
   latitude  Float   @default(-34.46)
   longitude Float   @default(-58.53)
   isPremium Boolean @default(false)
+  premiumUntil DateTime?
   credits   Int     @default(5)
   balance   Float   @default(0.0)
   role          String  @default("USER")
@@ -26,6 +28,7 @@ model User {
   emailVerified Boolean @default(false)
   verified      Boolean @default(false)
   verifiedAt    DateTime?
+  termsAcceptedAt DateTime?
   createdAt     DateTime @default(now())
 
   clothingItems    ClothingItem[]

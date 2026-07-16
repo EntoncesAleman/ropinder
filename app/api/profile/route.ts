@@ -6,7 +6,7 @@ export async function PATCH(req: NextRequest) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
 
-  const { name, avatar, bio } = await req.json();
+  const { name, avatar, bio, phone } = await req.json();
   const data: Record<string, string> = {};
 
   if (name !== undefined) {
@@ -20,11 +20,12 @@ export async function PATCH(req: NextRequest) {
   }
   if (avatar !== undefined) data.avatar = String(avatar);
   if (bio !== undefined) data.bio = String(bio).slice(0, 280);
+  if (phone !== undefined) data.phone = String(phone).slice(0, 30);
 
   const user = await prisma.user.update({
     where: { id: session.id },
     data,
-    select: { id: true, name: true, email: true, avatar: true, bio: true },
+    select: { id: true, name: true, email: true, avatar: true, bio: true, phone: true },
   });
 
   return NextResponse.json({ user });

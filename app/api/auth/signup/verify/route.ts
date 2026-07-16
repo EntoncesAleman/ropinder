@@ -7,9 +7,11 @@ const MAX_ATTEMPTS = 5;
 
 export async function POST(req: NextRequest) {
   try {
-    const { name, email, password, code } = await req.json();
+    const { name, email, password, code, acceptedTerms } = await req.json();
     if (!name?.trim() || !email?.trim() || !password || !code)
       return NextResponse.json({ error: "Faltan campos" }, { status: 400 });
+    if (!acceptedTerms)
+      return NextResponse.json({ error: "Tenés que aceptar los Términos y Condiciones" }, { status: 400 });
 
     const record = await prisma.verificationCode.findFirst({
       where: { email, purpose: "SIGNUP" },
@@ -32,7 +34,7 @@ export async function POST(req: NextRequest) {
 
     const hash = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
-      data: { name: name.trim(), email, password: hash, credits: 5, emailVerified: true },
+      data: { name: name.trim(), email, password: hash, credits: 5, emailVerified: true, termsAcceptedAt: new Date() },
       select: { id: true, name: true, email: true, credits: true, balance: true, isPremium: true, avatar: true },
     });
 

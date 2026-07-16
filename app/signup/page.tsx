@@ -3,20 +3,41 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Shirt, Gift } from "lucide-react";
+import { Shirt, Gift, Mail } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function SignupPage() {
   const router = useRouter();
   const { refresh } = useAuth();
   const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [code, setCode] = useState("");
+  const [step, setStep] = useState<"form" | "code">("form");
+  const [devCode, setDevCode] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [formRenderedAt] = useState(() => Date.now());
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleRequestCode(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true); setError("");
-    const res = await fetch("/api/auth/signup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+    const res = await fetch("/api/auth/signup/request-code", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...form, hp: "", formRenderedAt }),
+    });
+    const data = await res.json().catch(() => ({ error: "Error de conexión con el servidor" }));
+    if (!res.ok) { setError(data.error); setLoading(false); return; }
+    setDevCode(data.devCode ?? null);
+    setStep("code");
+    setLoading(false);
+  }
+
+  async function handleVerify(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true); setError("");
+    const res = await fetch("/api/auth/signup/verify", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...form, code }),
+    });
     const data = await res.json().catch(() => ({ error: "Error de conexión con el servidor" }));
     if (!res.ok) { setError(data.error); setLoading(false); return; }
     await refresh();
@@ -35,19 +56,46 @@ export default function SignupPage() {
             <Gift size={14} /> 5 créditos gratis de bienvenida
           </div>
         </div>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <input type="text" placeholder="Tu nombre" value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-            className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300" required />
-          <input type="email" placeholder="Email" value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
-            className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300" required />
-          <input type="password" placeholder="Contraseña (mín. 6 caracteres)" value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
-            className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300" required minLength={6} />
-          {error && <p className="text-rose-500 text-sm text-center">{error}</p>}
-          <motion.button whileTap={{ scale: 0.97 }} type="submit" disabled={loading}
-            className="w-full bg-rose-500 text-white font-semibold py-3 rounded-xl hover:bg-rose-600 transition disabled:opacity-60">
-            {loading ? "Creando cuenta..." : "Crear cuenta gratis"}
-          </motion.button>
-        </form>
+
+        {step === "form" ? (
+          <form onSubmit={handleRequestCode} className="flex flex-col gap-4">
+            <input type="text" placeholder="Nombre de usuario" value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300" required />
+            <input type="email" placeholder="Email" value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
+              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300" required />
+            <input type="password" placeholder="Contraseña (mín. 6 caracteres)" value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
+              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300" required minLength={6} />
+            {/* Honeypot — hidden from real users, bots that auto-fill every field will trip it */}
+            <input type="text" name="website" tabIndex={-1} autoComplete="off" style={{ position: "absolute", left: "-9999px", opacity: 0 }} aria-hidden="true" />
+            {error && <p className="text-rose-500 text-sm text-center">{error}</p>}
+            <motion.button whileTap={{ scale: 0.97 }} type="submit" disabled={loading}
+              className="w-full bg-rose-500 text-white font-semibold py-3 rounded-xl hover:bg-rose-600 transition disabled:opacity-60">
+              {loading ? "Enviando código..." : "Continuar"}
+            </motion.button>
+          </form>
+        ) : (
+          <form onSubmit={handleVerify} className="flex flex-col gap-4">
+            <div className="flex items-center gap-2 bg-slate-50 text-slate-500 rounded-xl px-4 py-3 text-xs">
+              <Mail size={16} /> Te mandamos un código a {form.email}
+            </div>
+            {devCode && (
+              <p className="text-xs text-amber-600 bg-amber-50 rounded-xl px-4 py-2 text-center">
+                Modo prueba (sin mail configurado) — tu código es: <strong>{devCode}</strong>
+              </p>
+            )}
+            <input type="text" inputMode="numeric" placeholder="Código de 6 dígitos" value={code} onChange={(e) => setCode(e.target.value)}
+              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-center tracking-[0.3em] focus:outline-none focus:ring-2 focus:ring-rose-300" required maxLength={6} />
+            {error && <p className="text-rose-500 text-sm text-center">{error}</p>}
+            <motion.button whileTap={{ scale: 0.97 }} type="submit" disabled={loading}
+              className="w-full bg-rose-500 text-white font-semibold py-3 rounded-xl hover:bg-rose-600 transition disabled:opacity-60">
+              {loading ? "Verificando..." : "Confirmar y crear cuenta"}
+            </motion.button>
+            <button type="button" onClick={() => setStep("form")} className="text-xs text-slate-400 hover:underline">
+              ← Volver
+            </button>
+          </form>
+        )}
+
         <p className="text-center text-sm text-slate-400 mt-6">
           ¿Ya tenés cuenta?{" "}
           <Link href="/login" className="text-rose-500 font-medium hover:underline">Iniciá sesión</Link>

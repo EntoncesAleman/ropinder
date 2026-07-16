@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { notify } from "@/lib/notify";
 
 const VALID_STATUSES = ["PENDING", "REVIEWED", "RESOLVED", "DISMISSED"];
 
@@ -22,6 +23,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       reviewedAt: new Date(),
     },
   });
+
+  if (status === "RESOLVED" || status === "DISMISSED")
+    await notify(report.reporterId, "REPORT_RESOLVED", "Tu reporte fue revisado", report.resolution || "El equipo de Ropinder revisó tu reporte.", "/profile");
 
   return NextResponse.json(report);
 }

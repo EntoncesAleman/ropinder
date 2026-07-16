@@ -125,11 +125,13 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
         <Link href="/matches" className="text-slate-400 hover:text-slate-600">
           <ArrowLeft size={20} />
         </Link>
-        <Image src={other.avatar} alt={other.name} width={36} height={36} className="rounded-xl object-cover" />
-        <div className="flex-1">
-          <p className="font-semibold text-slate-800 text-sm">{other.name}</p>
-          <p className="text-xs text-emerald-500 font-medium">Match confirmado ✓</p>
-        </div>
+        <Link href={`/seller/${other.id}`} className="flex items-center gap-3 flex-1 min-w-0">
+          <Image src={other.avatar} alt={other.name} width={36} height={36} className="rounded-xl object-cover" />
+          <div className="min-w-0">
+            <p className="font-semibold text-slate-800 text-sm truncate">{other.name}</p>
+            <p className="text-xs text-emerald-500 font-medium">Match confirmado ✓</p>
+          </div>
+        </Link>
         <button
           onClick={() => setReporting((v) => !v)}
           disabled={reportSent}

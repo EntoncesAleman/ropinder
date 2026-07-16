@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { notify } from "@/lib/notify";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -51,6 +52,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     data: { matchId: id, senderId: session.id, text: text.trim() },
     include: { sender: { select: { id: true, name: true, avatar: true } } },
   });
+
+  const recipientId = match.userAId === session.id ? match.userBId : match.userAId;
+  await notify(recipientId, "MESSAGE", `Nuevo mensaje de ${message.sender.name}`, text.trim().slice(0, 80), `/matches/${id}`);
 
   return NextResponse.json(message, { status: 201 });
 }

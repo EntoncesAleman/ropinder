@@ -36,6 +36,7 @@ export async function getSession() {
       id: true, name: true, email: true, avatar: true, bio: true,
       isPremium: true, credits: true, balance: true, latitude: true, longitude: true,
       role: true, bannedAt: true, ratingAvg: true, ratingCount: true,
+      verified: true, emailVerified: true,
     },
   });
 }

@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 
 const WITHDRAWAL_HOLD_HOURS = 48;
+const PLATFORM_COMMISSION_RATE = 0.08;
+const PREMIUM_COMMISSION_RATE = 0.05;
 
 export async function POST(req: NextRequest) {
   const session = await getSession();
@@ -26,22 +28,30 @@ export async function POST(req: NextRequest) {
   if (meta.buyerId !== session.id)
     return NextResponse.json({ error: "Solo quien pagó puede confirmar la recepción" }, { status: 403 });
 
+  const seller = await prisma.user.findUnique({ where: { id: meta.sellerId }, select: { isPremium: true } });
+  const commissionRate = seller?.isPremium ? PREMIUM_COMMISSION_RATE : PLATFORM_COMMISSION_RATE;
+
   const availableAt = new Date(Date.now() + WITHDRAWAL_HOLD_HOURS * 60 * 60 * 1000);
+  const commission = tx.amount * commissionRate;
+  const netAmount = tx.amount - commission;
 
   await prisma.transaction.update({ where: { id: tx.id }, data: { status: "COMPLETED" } });
 
-  await prisma.user.update({ where: { id: meta.sellerId }, data: { balance: { increment: tx.amount } } });
+  await prisma.user.update({ where: { id: meta.sellerId }, data: { balance: { increment: netAmount } } });
 
   await prisma.transaction.create({
     data: {
       userId: meta.sellerId,
-      amount: tx.amount,
+      amount: netAmount,
       type: "ESCROW_RELEASE",
       status: "COMPLETED",
-      meta: JSON.stringify({ buyerId: session.id, sellerId: meta.sellerId, matchId: meta.matchId }),
+      meta: JSON.stringify({
+        buyerId: session.id, sellerId: meta.sellerId, matchId: meta.matchId,
+        grossAmount: tx.amount, commission, commissionRate,
+      }),
       availableAt,
     },
   });
 
-  return NextResponse.json({ ok: true, amountReleased: tx.amount, withdrawableAt: availableAt });
+  return NextResponse.json({ ok: true, amountReleased: netAmount, commission, withdrawableAt: availableAt });
 }

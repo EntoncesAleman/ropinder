@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { notify } from "@/lib/notify";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
@@ -46,6 +47,8 @@ export async function POST(request: NextRequest) {
   if (!existing) {
     const match = await prisma.match.create({ data: { userAId: userId, userBId: ownerId } });
     matchId = match.id;
+    const swiper = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
+    await notify(ownerId, "MATCH", "¡Nuevo match!", `Hiciste match con ${swiper?.name ?? "alguien"}`, `/matches/${match.id}`);
   }
 
   await prisma.user.update({ where: { id: userId }, data: { credits: { decrement: 1 } } });

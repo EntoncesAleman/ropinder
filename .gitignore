@@ -45,3 +45,19 @@ dev.db
 next-env.d.ts
 
 /app/generated/prisma
+project-tmp.json*
+__MACOSX
+
+# capacitor / android
+/android/.gradle/
+/android/app/build/
+/android/local.properties
+/android/build/
+/android/captures/
+
+# capacitor / ios
+/ios/App/Pods/
+/ios/App/build/
+/ios/App/DerivedData/
+*.xcuserstate
+/ios/App/App.xcworkspace/xcuserdata/

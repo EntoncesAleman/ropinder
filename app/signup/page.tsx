@@ -1,15 +1,15 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Shirt, Gift, Mail } from "lucide-react";
+import { Shirt, Gift, Mail, MapPin } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function SignupPage() {
   const router = useRouter();
   const { refresh } = useAuth();
-  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [form, setForm] = useState({ name: "", fullName: "", email: "", password: "" });
   const [code, setCode] = useState("");
   const [step, setStep] = useState<"form" | "code">("form");
   const [devCode, setDevCode] = useState<string | null>(null);
@@ -17,6 +17,17 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [formRenderedAt] = useState(() => Date.now());
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [locationStatus, setLocationStatus] = useState<"pending" | "granted" | "denied">("pending");
+
+  useEffect(() => {
+    if (!navigator.geolocation) { setLocationStatus("denied"); return; }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { setCoords({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }); setLocationStatus("granted"); },
+      () => setLocationStatus("denied"),
+      { timeout: 8000 }
+    );
+  }, []);
 
   async function handleRequestCode(e: React.FormEvent) {
     e.preventDefault();
@@ -38,7 +49,7 @@ export default function SignupPage() {
     setLoading(true); setError("");
     const res = await fetch("/api/auth/signup/verify", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, code, acceptedTerms }),
+      body: JSON.stringify({ ...form, code, acceptedTerms, ...coords }),
     });
     const data = await res.json().catch(() => ({ error: "Error de conexión con el servidor" }));
     if (!res.ok) { setError(data.error); setLoading(false); return; }
@@ -61,12 +72,22 @@ export default function SignupPage() {
 
         {step === "form" ? (
           <form onSubmit={handleRequestCode} className="flex flex-col gap-4">
+            <input type="text" placeholder="Nombre y apellido" value={form.fullName} onChange={(e) => setForm((p) => ({ ...p, fullName: e.target.value }))}
+              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300" required />
             <input type="text" placeholder="Nombre de usuario" value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
               className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300" required />
             <input type="email" placeholder="Email" value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
               className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300" required />
             <input type="password" placeholder="Contraseña (mín. 6 caracteres)" value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
               className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300" required minLength={6} />
+
+            <div className="flex items-center gap-2 text-xs text-slate-400">
+              <MapPin size={13} className={locationStatus === "granted" ? "text-emerald-500" : "text-slate-300"} />
+              {locationStatus === "pending" && "Detectando tu ubicación para mostrarte prendas cerca tuyo..."}
+              {locationStatus === "granted" && "Ubicación detectada — vas a ver prendas cerca tuyo."}
+              {locationStatus === "denied" && "No pudimos acceder a tu ubicación. Podés activarla después desde tu perfil."}
+            </div>
+
             {/* Honeypot — hidden from real users, bots that auto-fill every field will trip it */}
             <input type="text" name="website" tabIndex={-1} autoComplete="off" style={{ position: "absolute", left: "-9999px", opacity: 0 }} aria-hidden="true" />
             <label className="flex items-start gap-2 text-xs text-slate-500">

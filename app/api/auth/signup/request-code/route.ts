@@ -12,7 +12,7 @@ function randomCode() {
 }
 
 export async function POST(req: NextRequest) {
-  const { name, email, password, hp, formRenderedAt } = await req.json();
+  const { name, fullName, email, password, hp, formRenderedAt } = await req.json();
 
   // Honeypot: real users never see or fill this field. Bots that fill every input trip it.
   if (hp) return NextResponse.json({ error: "Solicitud inválida" }, { status: 400 });
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
   if (typeof formRenderedAt === "number" && Date.now() - formRenderedAt < MIN_FORM_SECONDS * 1000)
     return NextResponse.json({ error: "Solicitud inválida" }, { status: 400 });
 
-  if (!name?.trim() || !email?.trim() || !password || password.length < 6)
+  if (!name?.trim() || !fullName?.trim() || !email?.trim() || !password || password.length < 6)
     return NextResponse.json({ error: "Completá todos los campos (contraseña mín. 6 caracteres)" }, { status: 400 });
 
   const existingEmail = await prisma.user.findUnique({ where: { email } });

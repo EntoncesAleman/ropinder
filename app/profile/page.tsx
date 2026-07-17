@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Zap, DollarSign, Crown, LogOut, Rocket, Plus, Shirt, Star, Pencil, BadgeCheck, Store, Lock, FileText } from "lucide-react";
+import { Zap, DollarSign, Crown, LogOut, Rocket, Plus, Shirt, Star, Pencil, BadgeCheck, Store, Lock, FileText, MapPin } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import Link from "next/link";
 import Image from "next/image";
@@ -36,6 +36,8 @@ export default function ProfilePage() {
   const [passwordError, setPasswordError] = useState("");
   const [passwordSaved, setPasswordSaved] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
+  const [updatingLocation, setUpdatingLocation] = useState(false);
+  const [locationMsg, setLocationMsg] = useState("");
 
   useEffect(() => {
     if (!loading && !user) router.push("/login");
@@ -95,6 +97,25 @@ export default function ProfilePage() {
     setEditPhone(user?.phone ?? "");
     setEditError("");
     setEditing(true);
+  }
+
+  function handleUpdateLocation() {
+    if (!navigator.geolocation) { setLocationMsg("Tu navegador no soporta geolocalización"); return; }
+    setUpdatingLocation(true);
+    setLocationMsg("");
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const res = await fetch("/api/profile", {
+          method: "PATCH", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+        });
+        if (res.ok) { await refresh(); setLocationMsg("Ubicación actualizada ✓"); }
+        else setLocationMsg("No se pudo actualizar");
+        setUpdatingLocation(false);
+      },
+      () => { setLocationMsg("No pudimos acceder a tu ubicación"); setUpdatingLocation(false); },
+      { timeout: 8000 }
+    );
   }
 
   async function handleChangePassword() {
@@ -174,6 +195,7 @@ export default function ProfilePage() {
                     <Pencil size={12} />
                   </button>
                 </div>
+                {user.fullName && <p className="text-xs text-slate-500">{user.fullName}</p>}
                 <p className="text-xs text-slate-400">{user.email}</p>
                 {user.phone && <p className="text-xs text-slate-400">{user.phone}</p>}
                 {user.ratingCount > 0 && (
@@ -325,6 +347,11 @@ export default function ProfilePage() {
             </div>
           </div>
         )}
+
+        <button onClick={handleUpdateLocation} disabled={updatingLocation} className="flex items-center gap-2 text-sm text-slate-600 hover:text-rose-500 mb-3 disabled:opacity-50">
+          <MapPin size={15} /> {updatingLocation ? "Detectando ubicación..." : "Actualizar mi ubicación"}
+        </button>
+        {locationMsg && <p className="text-xs text-slate-400 mb-3 -mt-2">{locationMsg}</p>}
 
         <Link href="/terms" className="flex items-center gap-2 text-sm text-slate-600 hover:text-rose-500">
           <FileText size={15} /> Términos y condiciones

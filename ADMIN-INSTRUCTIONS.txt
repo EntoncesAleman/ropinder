@@ -27,6 +27,11 @@ verificación ni Ropero — /profile para un admin muestra solo lo mínimo
 panel de administración. No hace falta usar ninguna función de
 comprador/vendedor con tu cuenta.
 
+Además, si entrás como admin a cualquier URL de comprador/vendedor
+(swipe, matches, favoritos, premium, subir prenda, Ropero) te redirige
+solo a /admin — tu cuenta no puede hacer swipe ni publicar prendas, solo
+administrar.
+
 QUÉ PUEDE HACER EL ADMIN (/admin)
 -----------------------------------
 El panel tiene 6 pestañas:
@@ -42,11 +47,17 @@ El panel tiene 6 pestañas:
 - USUARIOS: lista completa y buscable de todos los usuarios (nombre,
   nombre y apellido, email, teléfono, créditos, saldo, rating, estado),
   con botones para suspender/reactivar directo desde la lista, y
-  "Borrar" (solo aparece en cuentas ya suspendidas) para eliminarla
-  para siempre junto con todo lo que publicó — prendas, matches,
-  mensajes, reportes, transacciones, favoritos, notificaciones. No se
-  puede borrar a otro admin (primero hay que quitarle el rol) ni a vos
-  mismo.
+  "Borrar" para eliminarla para siempre junto con todo lo que publicó
+  — prendas, matches, mensajes, reportes, transacciones, favoritos,
+  notificaciones. Ya NO hace falta suspenderla primero para poder
+  borrarla. No se puede borrar a otro admin (primero hay que quitarle
+  el rol) ni a vos mismo. Tocando el nombre de cualquier usuario entrás
+  a su ficha completa (/admin/users/[id]): toda su info, créditos,
+  saldo, rating, prendas publicadas (con estado: activa/archivada/
+  vendida), últimas transacciones, cantidad de matches y de reportes
+  recibidos — con TODAS las acciones (suspender, borrar, dar/quitar
+  admin, otorgar Premium, acreditar créditos, resetear contraseña,
+  bloquear el email) ahí mismo, sin tener que ir a Herramientas.
 - TRANSACCIONES: todo el historial de movimientos de la plataforma
   (compras de créditos/Premium, pagos en custodia, liberaciones,
   reembolsos, retiros, promos/sorteos), por usuario.
@@ -64,8 +75,13 @@ El panel tiene 6 pestañas:
     de una, o sorteás entre todos ellos y le acreditás los créditos
     solo a un ganador random. Ambos quedan registrados como
     transacciones (PROMO_CREDIT / PROMO_RAFFLE_WIN) exportables.
-- SEO: enlaces en vivo a /robots.txt, /sitemap.xml y /llms.txt, y un
-  resumen de qué páginas son públicas/indexables hoy.
+  · Lista negra de emails: bloqueás un email para que nunca más pueda
+    registrarse en Ropinder (aunque no tenga cuenta hoy, o se le haya
+    borrado la cuenta). Se revisa automáticamente en el registro. Podés
+    sacar un email de la lista en cualquier momento.
+- SEO: enlaces en vivo a /robots.txt, /sitemap.xml y /llms.txt, una
+  vista previa del contenido actual de llms.txt, y un resumen de qué
+  páginas son públicas/indexables hoy.
 
 Cada una de las pestañas Usuarios y Transacciones tiene un botón "CSV"
 arriba a la derecha para descargar esos datos como planilla
@@ -227,6 +243,37 @@ argentino lo revise — el manejo de fondos de terceros puede tener
 implicancias regulatorias (BCRA, normativa de proveedores de servicios
 de pago) que un texto genérico no resuelve por sí solo.
 
+URGENTE — FOTOS ROTAS EN PRODUCCIÓN, YA LO ARREGLÉ (falta 1 paso tuyo)
+------------------------------------------------------------------------------
+Encontré un bug crítico: subir una foto (publicar una prenda o cambiar
+tu avatar) escribía el archivo en el disco del servidor
+(public/uploads). Eso funciona en tu compu, pero en Vercel cada request
+corre en una función serverless con disco de solo lectura / efímero —
+la fotos NUNCA se guardaban de verdad en producción. Por suerte nadie
+lo probó todavía ahí (revisé los logs de Vercel y no hay ningún POST a
+/api/upload en el último mes), así que no perdiste ninguna foto, pero
+apenas alguien intentara publicar una prenda en ropinder.vercel.app
+le iba a fallar o le iba a quedar la imagen rota.
+
+Ya reescribí /api/upload para usar Vercel Blob (almacenamiento de
+archivos nativo de Vercel, hecho justo para este caso) en vez del
+disco. Además ahora valida que el archivo sea JPG/PNG/WebP y que pese
+menos de 8MB (antes aceptaba cualquier tipo de archivo sin límite de
+tamaño).
+
+Lo único que falta de tu lado: activar Vercel Blob en el proyecto.
+1. En el dashboard de Vercel, entrá al proyecto "ropinder" → pestaña
+   "Storage" → "Create Database" → elegí "Blob".
+2. Conectalo al proyecto (un par de clics, Vercel te guía).
+3. Eso crea automáticamente la variable de entorno
+   BLOB_READ_WRITE_TOKEN en producción — no hay que escribir nada a
+   mano.
+Mientras no esté conectado, el código detecta que falta esa variable y
+sigue escribiendo en disco como antes (para que no se rompa nada en el
+medio), pero en Vercel eso seguiría sin persistir — así que este paso
+es importante hacerlo antes de que alguien publique una prenda de
+verdad.
+
 IMPORTANTE — BASE DE DATOS DE PRODUCCIÓN
 -------------------------------------------
 La app en Vercel usa Turso (SQLite remoto), no el archivo local dev.db.
@@ -327,6 +374,64 @@ etc.) son servicios pagos con su propia cuenta/API key, y ninguno es
 cola de reportes para que lo revises vos. Si en algún momento querés el
 filtro automático, avisame y conectamos un servicio de detección.
 
+INICIAR SESIÓN CON GOOGLE — CÓDIGO LISTO, FALTA 1 VALOR
+--------------------------------------------------------------
+Agregué el botón "Continuar con Google" en /login y /signup. Funciona
+así: el usuario toca el botón, Google confirma su identidad, y si es la
+primera vez le pedimos su ubicación GPS (igual de obligatoria que en el
+registro manual) antes de crear la cuenta — así no se salta esa regla
+por entrar con Google. Si el email ya tiene cuenta, entra directo. Si
+el email está en la lista negra, se lo rechaza igual que en el
+registro normal.
+
+Para activarlo necesito un Client ID de Google (gratis, no necesita
+tarjeta):
+1. Andá a https://console.cloud.google.com/apis/credentials
+2. Creá un proyecto (o usá uno existente) → "Crear credenciales" →
+   "ID de cliente de OAuth" → tipo "Aplicación web".
+3. En "Orígenes de JavaScript autorizados" agregá
+   https://ropinder.vercel.app (y http://localhost:3000 si querés
+   probarlo en tu compu).
+4. Te da un Client ID (termina en .apps.googleusercontent.com) — no
+   hace falta el Client Secret para esto. Pasámelo y lo cargo en
+   NEXT_PUBLIC_GOOGLE_CLIENT_ID / GOOGLE_CLIENT_ID (local y Vercel) y
+   el botón queda funcionando. Mientras no esté cargado, el botón
+   simplemente no se muestra — no rompe nada.
+
+SEGURIDAD DEL SITIO — QUÉ SE REFORZÓ Y QUÉ QUEDA
+--------------------------------------------------------
+Hecho en esta vuelta:
+- Headers de seguridad HTTP en todas las respuestas (X-Frame-Options
+  para que no te puedan meter el sitio en un iframe ajeno tipo
+  clickjacking, X-Content-Type-Options, Referrer-Policy, y
+  Permissions-Policy bloqueando cámara/micrófono/pagos por default).
+- La cookie de sesión ahora exige HTTPS en producción (antes solo tenía
+  httpOnly + sameSite, le faltaba el flag "secure").
+- El endpoint de subir fotos ahora valida tipo de archivo (solo JPG/
+  PNG/WebP) y tamaño máximo (8MB) — antes aceptaba cualquier archivo
+  sin límite.
+- Arreglé el bug de las fotos que no persistían en producción (ver
+  sección arriba) — de paso, también es una superficie de ataque menos
+  (nadie puede llenar el disco del servidor).
+- Revisé `npm audit`: hay 11 vulnerabilidades "moderadas", pero las tres
+  son en dependencias de desarrollo/transitivas (herramienta interna de
+  Prisma, postcss empaquetado dentro de Next, uuid dentro de una
+  librería que usa firebase-admin) — ninguna está expuesta a input de
+  usuario en cómo las usamos. Arreglarlas de forma automática
+  (`npm audit fix --force`) bajaría Prisma de v7 a v6 y Next de v16 a
+  v9, rompiendo toda la app — NO lo hice a propósito. No son urgentes.
+
+Recomendado para más adelante (no lo hice todavía, son más laboriosos):
+- Límite de intentos de login fallidos por IP/cuenta (hoy no hay
+  rate-limit en /api/auth/login — alguien podría probar contraseñas a
+  fuerza bruta contra un email conocido).
+- CSP (Content-Security-Policy) más estricta — no la agregué porque
+  hay que probarla con cuidado para no romper el service worker de
+  push, Firebase, Google Sign-In y las fuentes/imágenes remotas; se
+  puede armar cuando quieras.
+- 2FA opcional para tu cuenta de admin en particular, ya que es la
+  cuenta con más poder sobre la plataforma.
+
 FORMAS DE GANAR PLATA CON LA APP
 ------------------------------------
 - Comisión sobre cada transacción liberada desde la custodia (8%
@@ -338,3 +443,22 @@ FORMAS DE GANAR PLATA CON LA APP
 - Fee de retiro entre 48hs y 72hs (5%) — ya implementado.
 - Espacio publicitario en el feed, exclusivo para Premium anual — ya
   implementado.
+
+LIMPIEZA DE ARCHIVOS SIN USAR
+----------------------------------
+Revisé todo el código de la app (componentes, lib/, rutas de API,
+dependencias del package.json) y no encontré nada realmente sin usar
+ahí — todo lo que existe se referencia desde algún lado.
+
+Sí borré la carpeta mobile/ — era el scaffold viejo de Expo/React
+Native que se abandonó cuando pasamos a envolver la web app con
+Capacitor (android/ e ios/, que sí están en uso). No estaba en git, así
+que no se pierde ningún historial.
+
+Encontré dos carpetas más en la raíz del proyecto que NO son parte de
+la app y no las toqué porque no sé si las necesitás: Rop/ y Ropinder/
+(unos ~7MB en total). Son proyectos de Noodl (una herramienta de
+no-code, no tiene nada que ver con Next.js) con un template genérico de
+"Task Page" — parecen un prototipo viejo o una prueba de otra
+herramienta, sin relación con el código actual. Si confirmás que no las
+necesitás, las borro.

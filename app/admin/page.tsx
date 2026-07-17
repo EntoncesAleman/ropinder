@@ -1,10 +1,11 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   ShieldAlert, Ban, Undo2, Check, X, UserCog, KeyRound, Download,
-  Users, Receipt, BarChart3, Flag, Zap, Wrench, Crown, Gift, Trash2, Search,
+  Users, Receipt, BarChart3, Flag, Zap, Wrench, Crown, Gift, Trash2, Search, ShieldOff,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -89,6 +90,12 @@ export default function AdminPage() {
   const [promoMsg, setPromoMsg] = useState("");
   const [promoBusy, setPromoBusy] = useState(false);
   const [deleteBusyId, setDeleteBusyId] = useState<string | null>(null);
+  const [blacklist, setBlacklist] = useState<{ id: string; email: string; reason: string; blockedBy: string; createdAt: string }[]>([]);
+  const [blacklistEmail, setBlacklistEmail] = useState("");
+  const [blacklistReason, setBlacklistReason] = useState("");
+  const [blacklistMsg, setBlacklistMsg] = useState("");
+  const [blacklistBusy, setBlacklistBusy] = useState(false);
+  const [llmsTxt, setLlmsTxt] = useState("");
 
   useEffect(() => {
     if (loading) return;
@@ -117,13 +124,43 @@ export default function AdminPage() {
     if (res.ok) setTxs(await res.json());
   }, []);
 
+  const fetchBlacklist = useCallback(async () => {
+    const res = await fetch("/api/admin/blacklist");
+    if (res.ok) setBlacklist(await res.json());
+  }, []);
+
   useEffect(() => {
     if (user?.role !== "ADMIN") return;
     fetchReports();
     fetchStats();
     fetchUsers("");
     fetchTxs();
-  }, [user, fetchReports, fetchStats, fetchUsers, fetchTxs]);
+    fetchBlacklist();
+  }, [user, fetchReports, fetchStats, fetchUsers, fetchTxs, fetchBlacklist]);
+
+  async function handleAddBlacklist() {
+    setBlacklistBusy(true);
+    setBlacklistMsg("");
+    const res = await fetch("/api/admin/blacklist", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: blacklistEmail.trim(), reason: blacklistReason }),
+    });
+    const data = await res.json();
+    if (!res.ok) setBlacklistMsg(data.error);
+    else { setBlacklistEmail(""); setBlacklistReason(""); await fetchBlacklist(); }
+    setBlacklistBusy(false);
+  }
+
+  async function handleRemoveBlacklist(id: string) {
+    setBlacklistBusy(true);
+    await fetch(`/api/admin/blacklist/${id}`, { method: "DELETE" });
+    await fetchBlacklist();
+    setBlacklistBusy(false);
+  }
+
+  useEffect(() => {
+    if (tab === "seo" && !llmsTxt) fetch("/llms.txt").then((r) => r.text()).then(setLlmsTxt);
+  }, [tab, llmsTxt]);
 
   async function resolveReport(id: string, status: string) {
     setBusyId(id);
@@ -213,7 +250,7 @@ export default function AdminPage() {
   }
 
   async function deleteUser(userId: string) {
-    if (!confirm("¿Borrar esta cuenta suspendida para siempre? No se puede deshacer.")) return;
+    if (!confirm("¿Borrar esta cuenta para siempre, junto con todo lo que publicó? No se puede deshacer.")) return;
     setDeleteBusyId(userId);
     const res = await fetch(`/api/admin/users/${userId}/delete`, { method: "POST" });
     if (res.ok) { await fetchUsers(userQuery); await fetchStats(); }
@@ -361,19 +398,19 @@ export default function AdminPage() {
             {users.map((u) => (
               <div key={u.id} className="bg-white rounded-xl p-3 shadow-sm border border-slate-100">
                 <div className="flex items-center justify-between">
-                  <div>
+                  <Link href={`/admin/users/${u.id}`} className="block hover:opacity-70 transition">
                     <p className="text-sm font-semibold text-slate-800">
                       {u.name} {u.role === "ADMIN" && <span className="text-[10px] bg-slate-700 text-white rounded-full px-1.5 py-0.5 ml-1">ADMIN</span>}
                       {u.bannedAt && <span className="text-[10px] bg-rose-100 text-rose-600 rounded-full px-1.5 py-0.5 ml-1">Suspendido</span>}
                     </p>
                     <p className="text-[11px] text-slate-400">{u.fullName} · {u.email} {u.phone && `· ${u.phone}`}</p>
-                  </div>
+                  </Link>
                   <div className="flex gap-1.5">
                     <button onClick={() => toggleBan(u.id, !u.bannedAt)} disabled={busyId === u.id}
                       className={`text-[11px] font-semibold px-2 py-1 rounded-full disabled:opacity-50 ${u.bannedAt ? "bg-amber-100 text-amber-700" : "bg-rose-100 text-rose-600"}`}>
                       {u.bannedAt ? "Reactivar" : "Suspender"}
                     </button>
-                    {u.bannedAt && u.role !== "ADMIN" && (
+                    {u.role !== "ADMIN" && (
                       <button onClick={() => deleteUser(u.id)} disabled={deleteBusyId === u.id}
                         className="text-[11px] font-semibold px-2 py-1 rounded-full bg-slate-700 text-white disabled:opacity-50 flex items-center gap-1">
                         <Trash2 size={11} /> Borrar
@@ -508,6 +545,35 @@ export default function AdminPage() {
             </div>
             {promoMsg && <p className="text-[11px] text-slate-500 mt-1.5">{promoMsg}</p>}
           </div>
+
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-4">
+            <p className="text-xs font-bold text-slate-600 flex items-center gap-1.5 mb-2"><ShieldOff size={13} /> Lista negra de emails</p>
+            <p className="text-[11px] text-slate-400 mb-2">Impide que un email vuelva a registrarse, aunque no tenga cuenta o ya se le haya borrado la cuenta.</p>
+            <div className="flex gap-2 mb-3">
+              <input value={blacklistEmail} onChange={(e) => setBlacklistEmail(e.target.value)} placeholder="email@ejemplo.com"
+                className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-rose-300" />
+              <input value={blacklistReason} onChange={(e) => setBlacklistReason(e.target.value)} placeholder="Motivo (opcional)"
+                className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-rose-300" />
+              <button onClick={handleAddBlacklist} disabled={blacklistBusy || !blacklistEmail.trim()}
+                className="text-xs bg-rose-600 text-white font-semibold px-2.5 py-1.5 rounded-lg disabled:opacity-50">Bloquear</button>
+            </div>
+            {blacklistMsg && <p className="text-[11px] text-rose-500 mb-2">{blacklistMsg}</p>}
+            <div className="flex flex-col gap-1.5">
+              {blacklist.map((b) => (
+                <div key={b.id} className="flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2 text-xs">
+                  <div>
+                    <p className="text-slate-700 font-medium">{b.email}</p>
+                    {b.reason && <p className="text-slate-400">{b.reason}</p>}
+                  </div>
+                  <button onClick={() => handleRemoveBlacklist(b.id)} disabled={blacklistBusy}
+                    className="text-slate-400 hover:text-rose-500 disabled:opacity-50">
+                    <X size={13} />
+                  </button>
+                </div>
+              ))}
+              {blacklist.length === 0 && <p className="text-xs text-slate-400 text-center py-2">Sin emails bloqueados.</p>}
+            </div>
+          </div>
         </>
       )}
 
@@ -520,6 +586,11 @@ export default function AdminPage() {
               <a href="https://ropinder.vercel.app/sitemap.xml" target="_blank" rel="noreferrer" className="text-rose-500 hover:underline">/sitemap.xml →</a>
               <a href="https://ropinder.vercel.app/llms.txt" target="_blank" rel="noreferrer" className="text-rose-500 hover:underline">/llms.txt →</a>
             </div>
+          </div>
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+            <p className="text-xs font-bold text-slate-600 mb-2">Contenido actual de /llms.txt</p>
+            <p className="text-[11px] text-slate-400 mb-2">Es un archivo estático (public/llms.txt) — para cambiarlo hay que editar el código y redeployar, avisame qué querés que diga.</p>
+            <pre className="text-[11px] text-slate-600 bg-slate-50 rounded-lg p-3 whitespace-pre-wrap max-h-64 overflow-y-auto">{llmsTxt || "Cargando..."}</pre>
           </div>
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
             <p className="text-xs font-bold text-slate-600 mb-2">Estado</p>

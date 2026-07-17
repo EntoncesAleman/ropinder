@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Upload, X, ImagePlus, CheckCircle, Zap } from "lucide-react";
@@ -9,6 +9,10 @@ import { BRANDS, CATEGORIES, CONDITIONS, sizesForCategory } from "@/lib/catalog"
 export default function UploadPage() {
   const router = useRouter();
   const { user, refresh } = useAuth();
+
+  useEffect(() => {
+    if (user?.role === "ADMIN") router.push("/admin");
+  }, [user, router]);
   const [form, setForm] = useState({ title: "", description: "", size: "", brand: "", condition: "Bueno", category: "Ropa", price: "" });
   const [customBrand, setCustomBrand] = useState("");
   const [customSize, setCustomSize] = useState("");
@@ -55,7 +59,7 @@ export default function UploadPage() {
     if (res.ok) {
       await refresh();
       setSuccess(true);
-      setTimeout(() => router.push("/profile"), 2000);
+      setTimeout(() => router.push("/ropero"), 2000);
     }
     setLoading(false);
   }

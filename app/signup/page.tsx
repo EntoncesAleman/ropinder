@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Shirt, Gift, Mail, MapPin, LocateFixed } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AddressAutocomplete } from "@/components/AddressAutocomplete";
+import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -85,6 +86,17 @@ export default function SignupPage() {
             <Gift size={14} /> 5 créditos gratis de bienvenida
           </div>
         </div>
+
+        {step === "form" && (
+          <>
+            <GoogleSignInButton />
+            <div className="flex items-center gap-3 my-5">
+              <div className="flex-1 h-px bg-slate-100" />
+              <span className="text-xs text-slate-400">o registrate con tu email</span>
+              <div className="flex-1 h-px bg-slate-100" />
+            </div>
+          </>
+        )}
 
         {step === "form" ? (
           <form onSubmit={handleRequestCode} className="flex flex-col gap-4">

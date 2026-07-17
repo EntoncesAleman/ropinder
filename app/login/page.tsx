@@ -5,6 +5,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Shirt, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -58,6 +59,14 @@ export default function LoginPage() {
             {loading ? "Ingresando..." : "Ingresar"}
           </motion.button>
         </form>
+
+        <div className="flex items-center gap-3 my-5">
+          <div className="flex-1 h-px bg-slate-100" />
+          <span className="text-xs text-slate-400">o</span>
+          <div className="flex-1 h-px bg-slate-100" />
+        </div>
+        <GoogleSignInButton />
+
         <p className="text-center text-sm text-slate-400 mt-6">
           ¿No tenés cuenta?{" "}
           <Link href="/signup" className="text-rose-500 font-medium hover:underline">Registrate</Link>

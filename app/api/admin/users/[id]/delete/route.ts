@@ -11,7 +11,6 @@ export async function POST(_: NextRequest, { params }: { params: Promise<{ id: s
   if (!target) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
   if (id === admin.id) return NextResponse.json({ error: "No podés borrarte a vos mismo" }, { status: 400 });
   if (target.role === "ADMIN") return NextResponse.json({ error: "No se puede borrar a otro admin — primero quitale el rol" }, { status: 400 });
-  if (!target.bannedAt) return NextResponse.json({ error: "Solo se pueden borrar cuentas suspendidas" }, { status: 400 });
 
   const items = await prisma.clothingItem.findMany({ where: { userId: id }, select: { id: true } });
   const itemIds = items.map((i) => i.id);

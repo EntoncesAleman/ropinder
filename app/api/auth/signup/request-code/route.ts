@@ -24,6 +24,9 @@ export async function POST(req: NextRequest) {
   if (!name?.trim() || !fullName?.trim() || !email?.trim() || !password || password.length < 6)
     return NextResponse.json({ error: "Completá todos los campos (contraseña mín. 6 caracteres)" }, { status: 400 });
 
+  const blocked = await prisma.blockedEmail.findUnique({ where: { email: email.trim().toLowerCase() } });
+  if (blocked) return NextResponse.json({ error: "No podemos registrar ese email" }, { status: 403 });
+
   const existingEmail = await prisma.user.findUnique({ where: { email } });
   if (existingEmail) return NextResponse.json({ error: "Ese email ya está registrado" }, { status: 409 });
 

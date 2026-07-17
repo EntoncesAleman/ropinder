@@ -24,6 +24,7 @@ export default function FavoritesPage() {
 
   useEffect(() => {
     if (!loading && !user) { router.push("/login"); return; }
+    if (!loading && user?.role === "ADMIN") { router.push("/admin"); return; }
     if (user) fetchFavorites();
   }, [user, loading, router, fetchFavorites]);
 

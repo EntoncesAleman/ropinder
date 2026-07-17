@@ -22,6 +22,7 @@ export default function MatchesPage() {
 
   useEffect(() => {
     if (!loading && !user) { router.push("/login"); return; }
+    if (!loading && user?.role === "ADMIN") { router.push("/admin"); return; }
     if (!user) return;
     fetch("/api/matches").then((r) => r.json()).then((d) => { setMatches(Array.isArray(d) ? d : []); setFetching(false); });
   }, [user, loading, router]);

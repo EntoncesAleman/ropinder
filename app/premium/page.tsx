@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Crown, Zap, CheckCircle, CreditCard, Lock, BadgeCheck } from "lucide-react";
@@ -30,6 +30,10 @@ export default function PremiumPage() {
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user?.role === "ADMIN") router.push("/admin");
+  }, [user, router]);
 
   async function handleBuy(packId: string) {
     if (!user) { router.push("/login"); return; }

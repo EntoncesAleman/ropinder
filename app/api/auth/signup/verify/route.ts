@@ -15,6 +15,9 @@ export async function POST(req: NextRequest) {
     if (typeof latitude !== "number" || typeof longitude !== "number")
       return NextResponse.json({ error: "Elegí tu domicilio de la lista de sugerencias" }, { status: 400 });
 
+    const blocked = await prisma.blockedEmail.findUnique({ where: { email: email.trim().toLowerCase() } });
+    if (blocked) return NextResponse.json({ error: "No podemos registrar ese email" }, { status: 403 });
+
     const record = await prisma.verificationCode.findFirst({
       where: { email, purpose: "SIGNUP" },
       orderBy: { createdAt: "desc" },

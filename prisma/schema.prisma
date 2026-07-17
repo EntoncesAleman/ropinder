@@ -206,3 +206,11 @@ model PushToken {
 
   user User @relation(fields: [userId], references: [id])
 }
+
+model BlockedEmail {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  reason    String   @default("")
+  blockedBy String   @default("")
+  createdAt DateTime @default(now())
+}

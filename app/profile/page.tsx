@@ -1,9 +1,10 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { LogOut, Pencil, BadgeCheck, Crown, Lock, FileText, MapPin, Receipt, LifeBuoy, Star, ShieldAlert, Mail, Phone } from "lucide-react";
+import { LogOut, Pencil, BadgeCheck, Crown, Lock, FileText, MapPin, Receipt, LifeBuoy, Star, ShieldAlert, Mail, Phone, Bell } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AddressAutocomplete } from "@/components/AddressAutocomplete";
+import { registerPushToken } from "@/lib/firebaseClient";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -11,6 +12,8 @@ export default function ProfilePage() {
   const { user, loading, logout, refresh } = useAuth();
   const router = useRouter();
   const [editing, setEditing] = useState(false);
+  const [pushEnabling, setPushEnabling] = useState(false);
+  const [pushMsg, setPushMsg] = useState("");
   const [editName, setEditName] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [editError, setEditError] = useState("");
@@ -59,6 +62,14 @@ export default function ProfilePage() {
       () => { setLocationMsg("No pudimos acceder a tu ubicación"); setUpdatingLocation(false); },
       { timeout: 8000 }
     );
+  }
+
+  async function handleEnablePush() {
+    setPushEnabling(true);
+    setPushMsg("");
+    const result = await registerPushToken();
+    setPushMsg(result.ok ? "Notificaciones activadas ✓" : (result.error ?? "No se pudo activar"));
+    setPushEnabling(false);
   }
 
   async function handleSaveAddress() {
@@ -242,6 +253,11 @@ export default function ProfilePage() {
               <MapPin size={15} /> {updatingLocation ? "Detectando ubicación..." : "Usar mi ubicación actual (GPS)"}
             </button>
             {locationMsg && <p className="text-xs text-slate-400 mb-3 -mt-2">{locationMsg}</p>}
+
+            <button onClick={handleEnablePush} disabled={pushEnabling} className="flex items-center gap-2 text-sm text-slate-600 hover:text-rose-500 mb-3 disabled:opacity-50">
+              <Bell size={15} /> {pushEnabling ? "Activando..." : "Activar notificaciones push"}
+            </button>
+            {pushMsg && <p className="text-xs text-slate-400 mb-3 -mt-2">{pushMsg}</p>}
 
             <Link href="/history" className="flex items-center gap-2 text-sm text-slate-600 hover:text-rose-500 mb-3">
               <Receipt size={15} /> Historial de compras/ventas

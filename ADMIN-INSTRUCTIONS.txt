@@ -285,27 +285,37 @@ perfil), con botón de descarga CSV. El admin ve el historial de TODOS
 los usuarios en la pestaña "Transacciones" del panel, también
 exportable.
 
-PUSH NOTIFICATIONS REALES — CREDENCIALES DE SERVIDOR LISTAS, FALTA EL LADO CLIENTE
-------------------------------------------------------------------------------------------
-Ya armé la tabla en la base (PushToken) para guardar los tokens de
-dispositivo de cada usuario. Las credenciales del proyecto Firebase
-(ropinder-b973b) ya están cargadas en tu .env local — project ID, client
-email y private key del service account, más la VAPID key pública — y el
-paquete firebase-admin ya está instalado. Todavía faltan 3 cosas para
-que el envío real funcione de punta a punta:
-1. NEXT_PUBLIC_FIREBASE_API_KEY y NEXT_PUBLIC_FIREBASE_APP_ID (Project
-   Settings → General → "Tus apps" → configuración de la app web) — hoy
-   están vacías en el .env.
-2. Un lib/push.ts que use firebase-admin para mandar el push desde el
-   servidor, enganchado al mismo notify() que ya dispara la campanita
-   interna (match nuevo, mensaje nuevo, reporte resuelto).
-3. El lado cliente: pedir permiso de notificaciones en el navegador/
-   WebView, registrar un service worker, y guardar el token en
-   PushToken vía la API.
-Hoy en día lo que hay es el centro de notificaciones DENTRO de la app
-(la campanita) — pero no llega como notificación push nativa al celular
-si la app está cerrada. Pasame los dos valores que faltan del punto 1 y
-sigo con el resto.
+PUSH NOTIFICATIONS REALES — CÓDIGO LISTO, FALTAN 2 VALORES DE FIREBASE
+------------------------------------------------------------------------------
+Todo el circuito está armado de punta a punta:
+- lib/push.ts manda el push desde el servidor con firebase-admin, y está
+  enganchado a notify() (lib/notify.ts) — el mismo helper que dispara la
+  campanita interna. O sea que match nuevo, mensaje nuevo y reporte
+  resuelto ya intentan mandar push automáticamente, no hay que tocar
+  nada más en el código cuando conectes las claves que faltan.
+- lib/firebaseClient.ts + public/firebase-messaging-sw.js (service
+  worker) manejan el lado del navegador: piden permiso, generan el
+  token de FCM y lo guardan vía POST a /api/push/register.
+- En /profile, dentro de "Configuración", hay un botón "Activar
+  notificaciones push" que dispara todo ese flujo.
+
+Confirmé que firebase-admin inicializa bien con las credenciales que ya
+tenés en el .env (project ID, client email, private key) — probado
+contra Turso de producción con un token de prueba, creado y borrado al
+toque.
+
+Lo ÚNICO que falta para que funcione de punta a punta son 2 valores que
+todavía están vacíos en el .env:
+1. NEXT_PUBLIC_FIREBASE_API_KEY
+2. NEXT_PUBLIC_FIREBASE_APP_ID
+Los sacás de Firebase Console → Project Settings → General → "Tus
+apps" → la app web (o creás una app web ahí si todavía no existe
+ninguna) → "Configuración del SDK". Son valores públicos (no son
+secretos, van embebidos en el JS del navegador igual que la VAPID key),
+así que me los podés pasar por acá sin problema. En cuanto los tenga,
+los cargo en el .env local y en las variables de entorno de Vercel, y
+las notificaciones push funcionan solas — no hace falta ningún cambio
+de código adicional.
 
 FILTRO DE IMÁGENES GENERADAS POR IA — PENDIENTE
 ----------------------------------------------------

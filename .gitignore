@@ -35,6 +35,12 @@ yarn-error.log*
 .env*
 !.env.example
 
+# service account / credential files that sometimes get dropped in the repo root
+*firebase-adminsdk*.json
+*service-account*.json
+*.pem
+*.p12
+
 # database
 dev.db
 

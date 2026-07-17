@@ -8,6 +8,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 interface Message { id: string; senderId: string; text: string; createdAt: string; sender: { id: string; name: string; avatar: string } }
+interface SellerItem { id: string; title: string; price: number | null }
 interface Escrow { id: string; amount: number; type: "ESCROW_HOLD" | "ESCROW_RELEASE"; status: string; meta: { buyerId?: string; sellerId?: string } }
 interface MyRating { id: string; score: number }
 interface ChatData {
@@ -28,6 +29,8 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
   const [confirming, setConfirming] = useState(false);
   const [paying, setPaying] = useState(false);
   const [payAmount, setPayAmount] = useState("");
+  const [payItemId, setPayItemId] = useState("");
+  const [sellerItems, setSellerItems] = useState<SellerItem[]>([]);
   const [payError, setPayError] = useState("");
   const [reporting, setReporting] = useState(false);
   const [reportReason, setReportReason] = useState("");
@@ -38,7 +41,14 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
 
   async function fetchChat() {
     const res = await fetch(`/api/matches/${id}/messages`);
-    if (res.ok) { const d = await res.json(); setData(d); }
+    if (res.ok) {
+      const d = await res.json();
+      setData(d);
+      if (!d.escrow) {
+        const sres = await fetch(`/api/sellers/${d.other.id}`);
+        if (sres.ok) setSellerItems((await sres.json()).items ?? []);
+      }
+    }
   }
 
   useEffect(() => {
@@ -74,7 +84,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
     setPaying(true);
     setPayError("");
     const res = await fetch(`/api/matches/${id}/pay`, {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ amount }),
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ amount, itemId: payItemId || undefined }),
     });
     const d = await res.json();
     if (!res.ok) setPayError(d.error ?? "Error al pagar");
@@ -186,6 +196,18 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
             <p className="text-xs text-slate-600 font-medium flex items-center gap-1.5">
               <ShieldCheck size={14} /> El pago queda en custodia de Ropinder hasta confirmar la entrega.
             </p>
+            {sellerItems.length > 0 && (
+              <select value={payItemId} onChange={(e) => {
+                setPayItemId(e.target.value);
+                const item = sellerItems.find((i) => i.id === e.target.value);
+                if (item?.price) setPayAmount(String(item.price));
+              }} className="border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs bg-white">
+                <option value="">¿Qué prenda estás pagando? (opcional)</option>
+                {sellerItems.map((i) => (
+                  <option key={i.id} value={i.id}>{i.title}{i.price ? ` — $${i.price}` : ""}</option>
+                ))}
+              </select>
+            )}
             <div className="flex items-center gap-2">
               <input
                 type="number" min="0" step="0.01" value={payAmount} onChange={(e) => setPayAmount(e.target.value)}

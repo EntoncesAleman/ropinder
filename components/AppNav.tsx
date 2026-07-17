@@ -1,15 +1,14 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Heart, User, Crown, Upload, ShieldAlert, Bookmark } from "lucide-react";
+import { Home, Heart, User, Shirt, ShieldAlert, Bookmark } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 const tabs = [
   { href: "/", icon: Home, label: "Swipe" },
   { href: "/matches", icon: Heart, label: "Matches" },
   { href: "/favorites", icon: Bookmark, label: "Favoritos" },
-  { href: "/profile/upload", icon: Upload, label: "Subir" },
-  { href: "/premium", icon: Crown, label: "Premium" },
+  { href: "/ropero", icon: Shirt, label: "Ropero" },
   { href: "/profile", icon: User, label: "Perfil" },
 ];
 

@@ -4,6 +4,18 @@ import { NextRequest, NextResponse } from "next/server";
 // requires a descriptive User-Agent and forbids client-side/browser calls
 // directly against it, so this goes through our own server.
 export async function GET(req: NextRequest) {
+  const lat = req.nextUrl.searchParams.get("lat");
+  const lng = req.nextUrl.searchParams.get("lng");
+  if (lat && lng) {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lng)}`;
+    const res = await fetch(url, {
+      headers: { "User-Agent": "Ropinder/1.0 (contacto: soporte.ropinder@gmail.com)" },
+    });
+    if (!res.ok) return NextResponse.json(null);
+    const result = (await res.json()) as { display_name?: string };
+    return NextResponse.json(result.display_name ? { label: result.display_name } : null);
+  }
+
   const q = req.nextUrl.searchParams.get("q")?.trim();
   if (!q || q.length < 3) return NextResponse.json([]);
 

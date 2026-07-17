@@ -63,6 +63,9 @@ model ClothingItem {
   isBumped    Boolean  @default(false)
   bumpedAt    DateTime?
   isAd        Boolean  @default(false)
+  archived    Boolean  @default(false)
+  soldAt      DateTime?
+  expiresAt   DateTime?
   latitude    Float
   longitude   Float
   userId      String

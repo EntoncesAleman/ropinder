@@ -14,7 +14,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   if (!seller || seller.bannedAt) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
 
   const items = await prisma.clothingItem.findMany({
-    where: { userId: id },
+    where: { userId: id, archived: false },
     orderBy: [{ isBumped: "desc" }, { createdAt: "desc" }],
   });
 

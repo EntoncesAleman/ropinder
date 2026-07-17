@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
   if (!tx || tx.status !== "PENDING" || tx.type !== "ESCROW_HOLD")
     return NextResponse.json({ error: "No hay ningún pago pendiente para liberar" }, { status: 400 });
 
-  const meta = JSON.parse(tx.meta) as { sellerId?: string; buyerId?: string; matchId?: string };
+  const meta = JSON.parse(tx.meta) as { sellerId?: string; buyerId?: string; matchId?: string; itemId?: string | null };
   if (!meta.sellerId) return NextResponse.json({ error: "Sin vendedor" }, { status: 400 });
 
   // Only the buyer who funded the escrow can confirm receipt and release it.
@@ -38,6 +38,11 @@ export async function POST(req: NextRequest) {
   await prisma.transaction.update({ where: { id: tx.id }, data: { status: "COMPLETED" } });
 
   await prisma.user.update({ where: { id: meta.sellerId }, data: { balance: { increment: netAmount } } });
+
+  // Sold items come off the feed automatically; they stay visible in each side's own history.
+  if (meta.itemId) {
+    await prisma.clothingItem.update({ where: { id: meta.itemId }, data: { archived: true, soldAt: new Date() } });
+  }
 
   await prisma.transaction.create({
     data: {

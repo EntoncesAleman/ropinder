@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { haversineKm } from "@/lib/haversine";
 import { getSession } from "@/lib/auth";
+import { FREE_LISTING_LIFETIME_DAYS } from "@/lib/limits";
 
 // Matches the largest option on the client's DistanceSlider — ads still
 // respect radius, just always at the widest one available.
@@ -23,6 +24,7 @@ export async function GET(request: NextRequest) {
     where: {
       userId: userId ? { not: userId } : undefined,
       id: swipedIds.length > 0 ? { notIn: swipedIds } : undefined,
+      archived: false,
       OR: q ? [{ title: { contains: q } }, { brand: { contains: q } }, { category: { contains: q } }] : undefined,
     },
     include: { user: { select: { id: true, name: true, avatar: true, ratingAvg: true, ratingCount: true } } },
@@ -58,6 +60,8 @@ export async function POST(req: NextRequest) {
       latitude: session.latitude,
       longitude: session.longitude,
       userId: session.id,
+      // Premium listings stay up indefinitely; free ones expire and move to history.
+      expiresAt: session.isPremium ? null : new Date(Date.now() + FREE_LISTING_LIFETIME_DAYS * 24 * 60 * 60 * 1000),
     },
   });
 

@@ -12,15 +12,24 @@ ropinder.vercel.app/login con ese email y tu contraseña, y te va a llevar
 directo a ropinder.vercel.app/admin.
 
 Formas de sumar otro admin (por ejemplo un moderador de confianza):
-1. Desde el panel /admin, sección "Otorgar / quitar admin": poné el email
-   de la persona (tiene que haberse registrado antes en /signup) y tocá
-   "Dar admin". Podés quitárselo del mismo lugar con "Quitar".
+1. Desde el panel /admin, pestaña "Herramientas" → "Otorgar / quitar
+   admin": poné el email de la persona (tiene que haberse registrado
+   antes en /signup) y tocá "Dar admin". Podés quitárselo del mismo
+   lugar con "Quitar".
 2. O, desde tu compu, con el mismo efecto:
      npm run admin:promote -- email@ejemplo.com
 
+TU PROPIA CUENTA DE ADMIN — SIN "PERFIL" DE USUARIO
+----------------------------------------------------------
+Tu cuenta (tomas.aleman@gmail.com) no tiene créditos, monedero,
+verificación ni Ropero — /profile para un admin muestra solo lo mínimo
+(nombre, email, cambiar contraseña, cerrar sesión) y un botón directo al
+panel de administración. No hace falta usar ninguna función de
+comprador/vendedor con tu cuenta.
+
 QUÉ PUEDE HACER EL ADMIN (/admin)
 -----------------------------------
-El panel tiene 4 pestañas:
+El panel tiene 6 pestañas:
 
 - RESUMEN: estadísticas generales — usuarios totales, suspendidos,
   Premium activos, verificados, prendas publicadas, matches, reportes
@@ -29,21 +38,40 @@ El panel tiene 4 pestañas:
 - REPORTES: la cola de moderación (usuarios reportando otros usuarios
   o prendas, incluye motivo "Imagen generada por IA o engañosa").
   Resolver/descartar reportes, suspender/reactivar cuentas, reembolsar
-  al comprador de un match reportado. También desde acá: otorgar/quitar
-  el rol admin a cualquier email, y resetear la contraseña de cualquier
-  usuario (sin necesitar la actual — para soporte, cuentas bloqueadas).
+  al comprador de un match reportado.
 - USUARIOS: lista completa y buscable de todos los usuarios (nombre,
   nombre y apellido, email, teléfono, créditos, saldo, rating, estado),
-  con botón para suspender/reactivar directo desde la lista.
+  con botones para suspender/reactivar directo desde la lista, y
+  "Borrar" (solo aparece en cuentas ya suspendidas) para eliminarla
+  para siempre junto con todo lo que publicó — prendas, matches,
+  mensajes, reportes, transacciones, favoritos, notificaciones. No se
+  puede borrar a otro admin (primero hay que quitarle el rol) ni a vos
+  mismo.
 - TRANSACCIONES: todo el historial de movimientos de la plataforma
   (compras de créditos/Premium, pagos en custodia, liberaciones,
-  reembolsos, retiros), por usuario.
+  reembolsos, retiros, promos/sorteos), por usuario.
+- HERRAMIENTAS: acciones manuales de administración —
+  · Otorgar / quitar rol admin a cualquier email.
+  · Resetear la contraseña de cualquier usuario (sin necesitar la
+    actual — para soporte, cuentas bloqueadas).
+  · Acreditar créditos manualmente (ver más abajo).
+  · Otorgar Premium manualmente: le das a cualquier email X días de
+    Premium aunque no haya pagado (por ejemplo, pagó por fuera de la
+    app, o es una cortesía). Si ya es Premium, extiende el vencimiento
+    en vez de reiniciarlo. Podés incluir la insignia de verificado de
+    yapa con el checkbox.
+  · Promos y sorteos: acreditás créditos a TODOS los usuarios activos
+    de una, o sorteás entre todos ellos y le acreditás los créditos
+    solo a un ganador random. Ambos quedan registrados como
+    transacciones (PROMO_CREDIT / PROMO_RAFFLE_WIN) exportables.
+- SEO: enlaces en vivo a /robots.txt, /sitemap.xml y /llms.txt, y un
+  resumen de qué páginas son públicas/indexables hoy.
 
-Cada una de las tres últimas pestañas tiene un botón "CSV" arriba a la
-derecha para descargar esos datos como planilla (Excel/Google Sheets
-los abre directo).
+Cada una de las pestañas Usuarios y Transacciones tiene un botón "CSV"
+arriba a la derecha para descargar esos datos como planilla
+(Excel/Google Sheets los abre directo).
 
-ACREDITAR CRÉDITOS A MANO (pestaña Reportes)
+ACREDITAR CRÉDITOS A MANO (pestaña Herramientas)
 --------------------------------------------------
 Cuando confirmes en MercadoPago que llegó una transferencia de un
 usuario (mientras el cobro automático todavía no está conectado), desde
@@ -65,11 +93,42 @@ CÓMO FUNCIONA LA PLATA (custodia / escrow)
    5% si el vendedor es Premium).
 3. Esa plata liberada queda retenida 48 horas antes de poder retirarse.
    Entre las 48hs y las 72hs se puede retirar pero con un fee del 5%;
-   pasadas las 72hs, sin cargo. Se ve el desglose en /profile.
+   pasadas las 72hs, sin cargo. Se ve el desglose en /ropero.
 4. Si algo sale mal y se reporta el match, vos como admin podés
    reembolsar al comprador desde /admin — le devolvemos el monto TOTAL
    que pagó (no el neto que recibió el vendedor), y si ya se le había
    liberado al vendedor, se lo sacamos de su balance.
+
+CRÉDITOS Y PUBLICACIONES — RESET MENSUAL Y VENCIMIENTO
+-------------------------------------------------------------
+Cada usuario NO Premium recibe una cantidad fija de créditos gratis por
+mes (FREE_MONTHLY_CREDITS en lib/limits.ts). No son acumulables: el día
+1 de cada mes, un cron job (vercel.json → /api/cron/monthly-reset)
+resetea los créditos de todos los usuarios no-Premium a ese número fijo,
+pisando lo que les haya quedado.
+
+Ese mismo cron también da de baja (archived = true) las publicaciones
+gratuitas que ya cumplieron 30 días (FREE_LISTING_LIFETIME_DAYS) desde
+que se publicaron — la prenda sale del feed activo, pero sigue en el
+historial del vendedor; para volver a mostrarla tiene que publicarla de
+nuevo. Los usuarios Premium no tienen este límite: sus publicaciones
+quedan por tiempo indeterminado (expiresAt queda null).
+
+Vercel Cron necesita que el proyecto tenga un plan que soporte crons
+(el free tier limita a 1 ejecución por día, que es justo lo que usamos
+— 1 vez al mes alcanza y sobra). Si querés probarlo a mano sin esperar
+al día 1: GET a /api/cron/monthly-reset con header
+Authorization: Bearer <CRON_SECRET> (variable de entorno que hay que
+definir en Vercel).
+
+PRENDA VENDIDA — SALE SOLA DEL FEED
+-----------------------------------------
+Cuando un pago se confirma (liberación de la custodia), si el pago
+estaba vinculado a una prenda puntual (el comprador la elige de un
+desplegable al pagar en el chat), esa prenda se marca automáticamente
+como archivada y vendida (soldAt). Sale del feed activo de inmediato,
+pero se puede seguir viendo en el historial de compras/ventas de ambos
+lados (comprador y vendedor) en /history.
 
 PREMIUM — PLANES
 --------------------
@@ -91,29 +150,43 @@ tiene mucho más alcance que una prenda normal sin ser 100% global. Es la
 única forma de acceder a ese espacio por ahora — no hay venta de espacio
 publicitario aparte para marcas que no sean usuarias con Premium anual.
 
-DOMICILIO CON AUTOCOMPLETADO
----------------------------------
-El registro ahora pide domicilio (no solo geolocalización por GPS). Usa
-autocompletado con OpenStreetMap Nominatim — gratis, sin necesitar una
-API key. El usuario escribe, aparecen sugerencias, y al elegir una se
-guarda tanto el texto de la dirección como las coordenadas exactas. Es
-obligatorio elegir una sugerencia de la lista (no alcanza con escribir
-texto libre) para asegurar que las coordenadas sean reales. También se
-puede cambiar el domicilio después desde /profile.
+UBICACIÓN POR GPS — OBLIGATORIA EN EL REGISTRO
+----------------------------------------------------
+Como en Tinder, el registro pide la ubicación real del dispositivo
+(navigator.geolocation) y NO se puede crear la cuenta sin darle permiso
+— no hay forma de saltear este paso escribiendo una dirección a mano.
+Al detectar las coordenadas, se hace geocodificación inversa (Nominatim
+/reverse) para mostrar una dirección legible, que el usuario puede
+ajustar después con autocompletado si quiere afinar el punto exacto —
+pero las coordenadas que importan (para el feed por cercanía) salen del
+GPS real, no del texto. También se puede volver a actualizar la
+ubicación después desde /profile ("Usar mi ubicación actual (GPS)"), o
+cambiar el domicilio de texto con autocompletado ahí mismo.
 
-Google Maps/Places daría una experiencia más pulida (mejor autocompletado,
-resultados más precisos), pero necesita una API key de Google Cloud con
-facturación habilitada (no es gratis pasado cierto uso). Si en algún
-momento la conseguís, avisame y migramos de Nominatim a Google Places.
+Usa OpenStreetMap Nominatim para el geocoding — gratis, sin necesitar
+una API key. Google Maps/Places daría una experiencia más pulida, pero
+necesita una API key de Google Cloud con facturación habilitada. Si en
+algún momento la conseguís, avisame y migramos.
 
-CUENTA DE USUARIO
---------------------
-Los usuarios ahora pueden desde /profile:
-- Cambiar su nombre de usuario (tiene que ser único) y foto de perfil.
-- Cargar un número de teléfono (opcional).
-- Cambiar su contraseña (pidiendo la actual).
-Todo esto también aplica a tu cuenta de admin — no hay nada especial
-ahí, es el mismo /profile.
+PERFIL vs. ROPERO — DOS PESTAÑAS SEPARADAS
+------------------------------------------------
+Antes todo estaba junto en /profile (créditos, monedero, prendas,
+configuración) y quedaba desordenado. Ahora está separado en dos
+pestañas de la barra de navegación:
+
+- PERFIL (/profile): identidad y configuración de la cuenta, con un
+  diseño más prolijo tipo Instagram — foto, nombre de usuario, nombre y
+  apellido, email, teléfono, domicilio, más los accesos a cambiar
+  contraseña, cargar/cambiar domicilio, actualizar ubicación GPS,
+  historial de compras/ventas, soporte, términos y cerrar sesión. NO
+  tiene créditos ni monedero.
+- ROPERO (/ropero): todo lo relacionado con vender y monetizar —
+  créditos, monedero (saldo + retiro), verificación, Premium, y "Mis
+  prendas" (con bump y publicidad). Reemplaza a los botones sueltos de
+  "Subir" y "Premium" que antes estaban en la barra de navegación — esas
+  acciones ahora viven dentro de Ropero.
+
+Tu cuenta de admin no ve la pestaña Ropero (no la necesitás).
 
 REGISTRO — VERIFICACIÓN POR MAIL Y ANTI-BOT
 ------------------------------------------------
@@ -212,24 +285,27 @@ perfil), con botón de descarga CSV. El admin ve el historial de TODOS
 los usuarios en la pestaña "Transacciones" del panel, también
 exportable.
 
-PUSH NOTIFICATIONS REALES — PENDIENTE (dijiste que tenés Firebase)
-------------------------------------------------------------------------
+PUSH NOTIFICATIONS REALES — CREDENCIALES DE SERVIDOR LISTAS, FALTA EL LADO CLIENTE
+------------------------------------------------------------------------------------------
 Ya armé la tabla en la base (PushToken) para guardar los tokens de
-dispositivo de cada usuario, lista para cuando conectemos Firebase Cloud
-Messaging de verdad. Hoy en día lo que hay es el centro de
-notificaciones DENTRO de la app (la campanita), que ya avisa de match
-nuevo, mensaje nuevo y reporte resuelto — pero no llega como
-notificación push nativa al celular si la app está cerrada.
-
-Para conectar el push real necesito de tu proyecto de Firebase:
-1. El archivo de credenciales de cuenta de servicio (JSON) del proyecto
-   Firebase (Project Settings → Service Accounts → Generate new private
-   key).
-2. La VAPID key pública (Project Settings → Cloud Messaging → Web Push
-   certificates), para poder pedir permiso de notificaciones desde el
-   navegador/WebView.
-Pasame esos dos datos (como variables de entorno, no en el código) y
-conecto el envío real.
+dispositivo de cada usuario. Las credenciales del proyecto Firebase
+(ropinder-b973b) ya están cargadas en tu .env local — project ID, client
+email y private key del service account, más la VAPID key pública — y el
+paquete firebase-admin ya está instalado. Todavía faltan 3 cosas para
+que el envío real funcione de punta a punta:
+1. NEXT_PUBLIC_FIREBASE_API_KEY y NEXT_PUBLIC_FIREBASE_APP_ID (Project
+   Settings → General → "Tus apps" → configuración de la app web) — hoy
+   están vacías en el .env.
+2. Un lib/push.ts que use firebase-admin para mandar el push desde el
+   servidor, enganchado al mismo notify() que ya dispara la campanita
+   interna (match nuevo, mensaje nuevo, reporte resuelto).
+3. El lado cliente: pedir permiso de notificaciones en el navegador/
+   WebView, registrar un service worker, y guardar el token en
+   PushToken vía la API.
+Hoy en día lo que hay es el centro de notificaciones DENTRO de la app
+(la campanita) — pero no llega como notificación push nativa al celular
+si la app está cerrada. Pasame los dos valores que faltan del punto 1 y
+sigo con el resto.
 
 FILTRO DE IMÁGENES GENERADAS POR IA — PENDIENTE
 ----------------------------------------------------

@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Shirt, Gift, Mail } from "lucide-react";
+import { Shirt, Gift, Mail, MapPin, LocateFixed } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AddressAutocomplete } from "@/components/AddressAutocomplete";
 
@@ -20,11 +20,34 @@ export default function SignupPage() {
   const [formRenderedAt] = useState(() => Date.now());
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [locationError, setLocationError] = useState("");
+
+  function handleUseGps() {
+    if (!navigator.geolocation) { setLocationError("Tu navegador no soporta geolocalización — no podés registrarte sin ubicación."); return; }
+    setLocating(true);
+    setLocationError("");
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const latitude = pos.coords.latitude;
+        const longitude = pos.coords.longitude;
+        setCoords({ latitude, longitude });
+        try {
+          const res = await fetch(`/api/geocode?lat=${latitude}&lng=${longitude}`);
+          const data = await res.json();
+          if (data?.label) setAddress(data.label);
+        } catch { /* address label is cosmetic; coords already captured */ }
+        setLocating(false);
+      },
+      () => { setLocationError("Necesitamos tu ubicación para continuar. Habilitá el permiso de ubicación en tu navegador e intentá de nuevo."); setLocating(false); },
+      { timeout: 10000 }
+    );
+  }
 
   async function handleRequestCode(e: React.FormEvent) {
     e.preventDefault();
     if (!acceptedTerms) { setError("Tenés que aceptar los Términos y Condiciones"); return; }
-    if (!coords) { setError("Elegí tu domicilio de la lista de sugerencias"); return; }
+    if (!coords) { setError("Activá tu ubicación (GPS) para continuar"); return; }
     setLoading(true); setError("");
     const res = await fetch("/api/auth/signup/request-code", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -74,14 +97,28 @@ export default function SignupPage() {
             <input type="password" placeholder="Contraseña (mín. 6 caracteres)" value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
               className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300" required minLength={6} />
 
-            <AddressAutocomplete
-              value={address}
-              onChange={(v) => { setAddress(v); setCoords(null); }}
-              onSelect={(s) => setCoords({ latitude: s.latitude, longitude: s.longitude })}
-              placeholder="Domicilio (para mostrarte prendas cerca tuyo)"
-            />
-            {address.length >= 3 && !coords && (
-              <p className="text-[11px] text-amber-600 -mt-2">Elegí una dirección de la lista para confirmarla.</p>
+            <div className="flex flex-col gap-1.5">
+              {!coords ? (
+                <button type="button" onClick={handleUseGps} disabled={locating}
+                  className="w-full flex items-center justify-center gap-2 bg-rose-50 text-rose-600 border border-rose-200 font-semibold py-3 rounded-xl hover:bg-rose-100 transition disabled:opacity-60">
+                  <LocateFixed size={16} /> {locating ? "Detectando ubicación..." : "Usar mi ubicación actual (GPS)"}
+                </button>
+              ) : (
+                <div className="flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl px-4 py-2.5 text-xs">
+                  <MapPin size={14} className="shrink-0" /> Ubicación detectada ✓ {address && <span className="truncate">— {address}</span>}
+                </div>
+              )}
+              <p className="text-[11px] text-slate-400">Necesaria para mostrarte prendas cerca tuyo, como en Tinder. No es opcional.</p>
+              {locationError && <p className="text-[11px] text-rose-500">{locationError}</p>}
+            </div>
+
+            {coords && (
+              <AddressAutocomplete
+                value={address}
+                onChange={(v) => setAddress(v)}
+                onSelect={(s) => setCoords({ latitude: s.latitude, longitude: s.longitude })}
+                placeholder="Ajustá tu domicilio exacto (opcional)"
+              />
             )}
 
             {/* Honeypot — hidden from real users, bots that auto-fill every field will trip it */}

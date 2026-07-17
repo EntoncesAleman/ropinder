@@ -7,7 +7,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!session) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
 
   const { id } = await params;
-  const { amount } = await req.json();
+  const { amount, itemId } = await req.json();
   if (typeof amount !== "number" || amount <= 0)
     return NextResponse.json({ error: "Monto inválido" }, { status: 400 });
 
@@ -22,6 +22,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const sellerId = match.userAId === session.id ? match.userBId : match.userAId;
 
+  if (itemId) {
+    const item = await prisma.clothingItem.findUnique({ where: { id: itemId } });
+    if (!item || item.userId !== sellerId || item.archived)
+      return NextResponse.json({ error: "Esa prenda ya no está disponible" }, { status: 400 });
+  }
+
   // Simulated card charge — Ropinder holds the funds in escrow until receipt is confirmed.
   await new Promise((r) => setTimeout(r, 300));
 
@@ -31,7 +37,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       amount,
       type: "ESCROW_HOLD",
       status: "PENDING",
-      meta: JSON.stringify({ matchId: id, buyerId: session.id, sellerId }),
+      meta: JSON.stringify({ matchId: id, buyerId: session.id, sellerId, itemId: itemId ?? null }),
     },
   });
 

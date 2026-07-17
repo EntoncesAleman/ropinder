@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   ShieldAlert, Ban, Undo2, Check, X, UserCog, KeyRound, Download,
-  Users, Receipt, BarChart3, Flag, Zap,
+  Users, Receipt, BarChart3, Flag, Zap, Wrench, Crown, Gift, Trash2, Search,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -51,6 +51,8 @@ const TABS = [
   { id: "reportes", label: "Reportes", icon: Flag },
   { id: "usuarios", label: "Usuarios", icon: Users },
   { id: "transacciones", label: "Transacciones", icon: Receipt },
+  { id: "herramientas", label: "Herramientas", icon: Wrench },
+  { id: "seo", label: "SEO", icon: Search },
 ] as const;
 
 export default function AdminPage() {
@@ -76,6 +78,17 @@ export default function AdminPage() {
   const [grantNote, setGrantNote] = useState("");
   const [grantMsg, setGrantMsg] = useState("");
   const [grantBusy, setGrantBusy] = useState(false);
+  const [premiumEmail, setPremiumEmail] = useState("");
+  const [premiumDays, setPremiumDays] = useState("30");
+  const [premiumVerified, setPremiumVerified] = useState(false);
+  const [premiumMsg, setPremiumMsg] = useState("");
+  const [premiumBusy, setPremiumBusy] = useState(false);
+  const [promoMode, setPromoMode] = useState<"ALL" | "RAFFLE">("ALL");
+  const [promoCredits, setPromoCredits] = useState("");
+  const [promoNote, setPromoNote] = useState("");
+  const [promoMsg, setPromoMsg] = useState("");
+  const [promoBusy, setPromoBusy] = useState(false);
+  const [deleteBusyId, setDeleteBusyId] = useState<string | null>(null);
 
   useEffect(() => {
     if (loading) return;
@@ -171,6 +184,43 @@ export default function AdminPage() {
     setGrantBusy(false);
   }
 
+  async function handleGrantPremium() {
+    setPremiumBusy(true);
+    setPremiumMsg("");
+    const res = await fetch("/api/admin/grant-premium", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: premiumEmail.trim(), days: Number(premiumDays), verified: premiumVerified }),
+    });
+    const data = await res.json();
+    setPremiumMsg(res.ok ? `${data.user.email} es Premium hasta ${new Date(data.user.premiumUntil).toLocaleDateString("es-AR")}` : data.error);
+    if (res.ok) { setPremiumEmail(""); await fetchUsers(userQuery); }
+    setPremiumBusy(false);
+  }
+
+  async function handlePromo() {
+    setPromoBusy(true);
+    setPromoMsg("");
+    const res = await fetch("/api/admin/promo", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: promoMode, credits: Number(promoCredits), note: promoNote }),
+    });
+    const data = await res.json();
+    if (!res.ok) setPromoMsg(data.error);
+    else if (promoMode === "ALL") setPromoMsg(`${promoCredits}✦ acreditados a ${data.usersAffected} usuarios`);
+    else setPromoMsg(`🎉 Ganador del sorteo: ${data.winnerEmail} (entre ${data.poolSize} usuarios) — ${promoCredits}✦ acreditados`);
+    if (res.ok) { setPromoCredits(""); setPromoNote(""); await fetchTxs(); }
+    setPromoBusy(false);
+  }
+
+  async function deleteUser(userId: string) {
+    if (!confirm("¿Borrar esta cuenta suspendida para siempre? No se puede deshacer.")) return;
+    setDeleteBusyId(userId);
+    const res = await fetch(`/api/admin/users/${userId}/delete`, { method: "POST" });
+    if (res.ok) { await fetchUsers(userQuery); await fetchStats(); }
+    else setError((await res.json()).error ?? "Error");
+    setDeleteBusyId(null);
+  }
+
   async function toggleBan(userId: string, banned: boolean) {
     setBusyId(userId);
     const res = await fetch(`/api/admin/users/${userId}/ban`, {
@@ -225,54 +275,6 @@ export default function AdminPage() {
 
       {tab === "reportes" && (
         <>
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-4">
-            <p className="text-xs font-bold text-slate-600 flex items-center gap-1.5 mb-2"><UserCog size={13} /> Otorgar / quitar admin</p>
-            <div className="flex gap-2">
-              <input value={promoteEmail} onChange={(e) => setPromoteEmail(e.target.value)} placeholder="email@ejemplo.com"
-                className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-rose-300" />
-              <button onClick={() => handlePromote("ADMIN")} disabled={promoteBusy || !promoteEmail.trim()}
-                className="text-xs bg-slate-700 text-white font-semibold px-2.5 py-1.5 rounded-lg disabled:opacity-50">Dar admin</button>
-              <button onClick={() => handlePromote("USER")} disabled={promoteBusy || !promoteEmail.trim()}
-                className="text-xs bg-slate-100 text-slate-600 font-semibold px-2.5 py-1.5 rounded-lg disabled:opacity-50">Quitar</button>
-            </div>
-            {promoteMsg && <p className="text-[11px] text-slate-500 mt-1.5">{promoteMsg}</p>}
-          </div>
-
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-6">
-            <p className="text-xs font-bold text-slate-600 flex items-center gap-1.5 mb-2"><KeyRound size={13} /> Resetear contraseña de un usuario</p>
-            <div className="flex flex-col gap-2">
-              <input value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} placeholder="email@ejemplo.com"
-                className="border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-rose-300" />
-              <div className="flex gap-2">
-                <input value={resetPassword} onChange={(e) => setResetPassword(e.target.value)} placeholder="Contraseña nueva (mín. 6)" type="text"
-                  className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-rose-300" />
-                <button onClick={handleResetPassword} disabled={resetBusy || !resetEmail.trim() || resetPassword.length < 6}
-                  className="text-xs bg-slate-700 text-white font-semibold px-2.5 py-1.5 rounded-lg disabled:opacity-50">Resetear</button>
-              </div>
-            </div>
-            {resetMsg && <p className="text-[11px] text-slate-500 mt-1.5">{resetMsg}</p>}
-          </div>
-
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-6">
-            <p className="text-xs font-bold text-slate-600 flex items-center gap-1.5 mb-2"><Zap size={13} /> Acreditar créditos manualmente</p>
-            <p className="text-[11px] text-slate-400 mb-2">Usalo cuando confirmes en MercadoPago que llegó una transferencia y todavía no está automatizado el alta de créditos.</p>
-            <div className="flex flex-col gap-2">
-              <input value={grantEmail} onChange={(e) => setGrantEmail(e.target.value)} placeholder="email@ejemplo.com"
-                className="border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-rose-300" />
-              <div className="flex gap-2">
-                <input value={grantCredits} onChange={(e) => setGrantCredits(e.target.value)} placeholder="Créditos (ej: 30)" type="number"
-                  className="w-28 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-rose-300" />
-                <input value={grantNote} onChange={(e) => setGrantNote(e.target.value)} placeholder="Nota (opcional, ej: transferencia MP #123)"
-                  className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-rose-300" />
-              </div>
-              <button onClick={handleGrantCredits} disabled={grantBusy || !grantEmail.trim() || !grantCredits}
-                className="text-xs bg-slate-700 text-white font-semibold px-2.5 py-1.5 rounded-lg disabled:opacity-50 self-start">
-                {grantBusy ? "..." : "Acreditar"}
-              </button>
-            </div>
-            {grantMsg && <p className="text-[11px] text-slate-500 mt-1.5">{grantMsg}</p>}
-          </div>
-
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-semibold text-slate-700 text-sm">Pendientes ({pending.length})</h2>
             {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- triggers a file download, not a page navigation */}
@@ -366,10 +368,18 @@ export default function AdminPage() {
                     </p>
                     <p className="text-[11px] text-slate-400">{u.fullName} · {u.email} {u.phone && `· ${u.phone}`}</p>
                   </div>
-                  <button onClick={() => toggleBan(u.id, !u.bannedAt)} disabled={busyId === u.id}
-                    className={`text-[11px] font-semibold px-2 py-1 rounded-full disabled:opacity-50 ${u.bannedAt ? "bg-amber-100 text-amber-700" : "bg-rose-100 text-rose-600"}`}>
-                    {u.bannedAt ? "Reactivar" : "Suspender"}
-                  </button>
+                  <div className="flex gap-1.5">
+                    <button onClick={() => toggleBan(u.id, !u.bannedAt)} disabled={busyId === u.id}
+                      className={`text-[11px] font-semibold px-2 py-1 rounded-full disabled:opacity-50 ${u.bannedAt ? "bg-amber-100 text-amber-700" : "bg-rose-100 text-rose-600"}`}>
+                      {u.bannedAt ? "Reactivar" : "Suspender"}
+                    </button>
+                    {u.bannedAt && u.role !== "ADMIN" && (
+                      <button onClick={() => deleteUser(u.id)} disabled={deleteBusyId === u.id}
+                        className="text-[11px] font-semibold px-2 py-1 rounded-full bg-slate-700 text-white disabled:opacity-50 flex items-center gap-1">
+                        <Trash2 size={11} /> Borrar
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-2 mt-2 text-[11px] text-slate-400">
                   <span>{u.credits}✦ créditos</span>
@@ -404,6 +414,123 @@ export default function AdminPage() {
             {txs.length === 0 && <p className="text-sm text-slate-400 text-center py-8">Sin transacciones todavía.</p>}
           </div>
         </>
+      )}
+
+      {tab === "herramientas" && (
+        <>
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-4">
+            <p className="text-xs font-bold text-slate-600 flex items-center gap-1.5 mb-2"><UserCog size={13} /> Otorgar / quitar admin</p>
+            <div className="flex gap-2">
+              <input value={promoteEmail} onChange={(e) => setPromoteEmail(e.target.value)} placeholder="email@ejemplo.com"
+                className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-rose-300" />
+              <button onClick={() => handlePromote("ADMIN")} disabled={promoteBusy || !promoteEmail.trim()}
+                className="text-xs bg-slate-700 text-white font-semibold px-2.5 py-1.5 rounded-lg disabled:opacity-50">Dar admin</button>
+              <button onClick={() => handlePromote("USER")} disabled={promoteBusy || !promoteEmail.trim()}
+                className="text-xs bg-slate-100 text-slate-600 font-semibold px-2.5 py-1.5 rounded-lg disabled:opacity-50">Quitar</button>
+            </div>
+            {promoteMsg && <p className="text-[11px] text-slate-500 mt-1.5">{promoteMsg}</p>}
+          </div>
+
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-4">
+            <p className="text-xs font-bold text-slate-600 flex items-center gap-1.5 mb-2"><KeyRound size={13} /> Resetear contraseña de un usuario</p>
+            <div className="flex flex-col gap-2">
+              <input value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} placeholder="email@ejemplo.com"
+                className="border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-rose-300" />
+              <div className="flex gap-2">
+                <input value={resetPassword} onChange={(e) => setResetPassword(e.target.value)} placeholder="Contraseña nueva (mín. 6)" type="text"
+                  className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-rose-300" />
+                <button onClick={handleResetPassword} disabled={resetBusy || !resetEmail.trim() || resetPassword.length < 6}
+                  className="text-xs bg-slate-700 text-white font-semibold px-2.5 py-1.5 rounded-lg disabled:opacity-50">Resetear</button>
+              </div>
+            </div>
+            {resetMsg && <p className="text-[11px] text-slate-500 mt-1.5">{resetMsg}</p>}
+          </div>
+
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-4">
+            <p className="text-xs font-bold text-slate-600 flex items-center gap-1.5 mb-2"><Zap size={13} /> Acreditar créditos manualmente</p>
+            <p className="text-[11px] text-slate-400 mb-2">Usalo cuando confirmes en MercadoPago que llegó una transferencia y todavía no está automatizado el alta de créditos.</p>
+            <div className="flex flex-col gap-2">
+              <input value={grantEmail} onChange={(e) => setGrantEmail(e.target.value)} placeholder="email@ejemplo.com"
+                className="border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-rose-300" />
+              <div className="flex gap-2">
+                <input value={grantCredits} onChange={(e) => setGrantCredits(e.target.value)} placeholder="Créditos (ej: 30)" type="number"
+                  className="w-28 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-rose-300" />
+                <input value={grantNote} onChange={(e) => setGrantNote(e.target.value)} placeholder="Nota (opcional, ej: transferencia MP #123)"
+                  className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-rose-300" />
+              </div>
+              <button onClick={handleGrantCredits} disabled={grantBusy || !grantEmail.trim() || !grantCredits}
+                className="text-xs bg-slate-700 text-white font-semibold px-2.5 py-1.5 rounded-lg disabled:opacity-50 self-start">
+                {grantBusy ? "..." : "Acreditar"}
+              </button>
+            </div>
+            {grantMsg && <p className="text-[11px] text-slate-500 mt-1.5">{grantMsg}</p>}
+          </div>
+
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-4">
+            <p className="text-xs font-bold text-slate-600 flex items-center gap-1.5 mb-2"><Crown size={13} /> Otorgar Premium manualmente</p>
+            <p className="text-[11px] text-slate-400 mb-2">Para casos que pagaron por fuera de la app, o cortesías. Extiende el vencimiento si ya es Premium.</p>
+            <div className="flex flex-col gap-2">
+              <input value={premiumEmail} onChange={(e) => setPremiumEmail(e.target.value)} placeholder="email@ejemplo.com"
+                className="border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-rose-300" />
+              <div className="flex items-center gap-2">
+                <input value={premiumDays} onChange={(e) => setPremiumDays(e.target.value)} placeholder="Días" type="number"
+                  className="w-24 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-rose-300" />
+                <label className="flex items-center gap-1.5 text-[11px] text-slate-500">
+                  <input type="checkbox" checked={premiumVerified} onChange={(e) => setPremiumVerified(e.target.checked)} className="accent-rose-500" />
+                  Incluir insignia verificada
+                </label>
+              </div>
+              <button onClick={handleGrantPremium} disabled={premiumBusy || !premiumEmail.trim() || !premiumDays}
+                className="text-xs bg-amber-500 text-white font-semibold px-2.5 py-1.5 rounded-lg disabled:opacity-50 self-start">
+                {premiumBusy ? "..." : "Otorgar Premium"}
+              </button>
+            </div>
+            {premiumMsg && <p className="text-[11px] text-slate-500 mt-1.5">{premiumMsg}</p>}
+          </div>
+
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-4">
+            <p className="text-xs font-bold text-slate-600 flex items-center gap-1.5 mb-2"><Gift size={13} /> Promos y sorteos</p>
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-1 bg-slate-100 rounded-lg p-1 w-fit">
+                <button onClick={() => setPromoMode("ALL")} className={`text-[11px] font-semibold px-2.5 py-1 rounded-md ${promoMode === "ALL" ? "bg-white shadow-sm text-rose-500" : "text-slate-500"}`}>A todos</button>
+                <button onClick={() => setPromoMode("RAFFLE")} className={`text-[11px] font-semibold px-2.5 py-1 rounded-md ${promoMode === "RAFFLE" ? "bg-white shadow-sm text-rose-500" : "text-slate-500"}`}>Sorteo (1 ganador)</button>
+              </div>
+              <div className="flex gap-2">
+                <input value={promoCredits} onChange={(e) => setPromoCredits(e.target.value)} placeholder="Créditos" type="number"
+                  className="w-28 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-rose-300" />
+                <input value={promoNote} onChange={(e) => setPromoNote(e.target.value)} placeholder="Nota (ej: promo verano 2026)"
+                  className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-rose-300" />
+              </div>
+              <button onClick={handlePromo} disabled={promoBusy || !promoCredits}
+                className="text-xs bg-violet-500 text-white font-semibold px-2.5 py-1.5 rounded-lg disabled:opacity-50 self-start">
+                {promoBusy ? "..." : promoMode === "ALL" ? "Acreditar a todos" : "Sortear"}
+              </button>
+            </div>
+            {promoMsg && <p className="text-[11px] text-slate-500 mt-1.5">{promoMsg}</p>}
+          </div>
+        </>
+      )}
+
+      {tab === "seo" && (
+        <div className="flex flex-col gap-3">
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+            <p className="text-xs font-bold text-slate-600 mb-2">Archivos técnicos en vivo</p>
+            <div className="flex flex-col gap-1.5 text-xs">
+              <a href="https://ropinder.vercel.app/robots.txt" target="_blank" rel="noreferrer" className="text-rose-500 hover:underline">/robots.txt →</a>
+              <a href="https://ropinder.vercel.app/sitemap.xml" target="_blank" rel="noreferrer" className="text-rose-500 hover:underline">/sitemap.xml →</a>
+              <a href="https://ropinder.vercel.app/llms.txt" target="_blank" rel="noreferrer" className="text-rose-500 hover:underline">/llms.txt →</a>
+            </div>
+          </div>
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+            <p className="text-xs font-bold text-slate-600 mb-2">Estado</p>
+            <ul className="text-xs text-slate-500 flex flex-col gap-1.5 list-disc list-inside">
+              <li>Metadata y Open Graph configurados en el layout principal.</li>
+              <li>La mayoría de las páginas (swipe, matches, perfil) requieren login, así que no son indexables — es esperado en un marketplace privado.</li>
+              <li><code className="bg-slate-100 px-1 rounded">/login</code>, <code className="bg-slate-100 px-1 rounded">/signup</code> y <code className="bg-slate-100 px-1 rounded">/premium</code> son las páginas públicas indexables hoy.</li>
+              <li>Si querés más páginas públicas indexables (por ejemplo, perfiles de vendedor en modo tienda), avisame y lo armamos.</li>
+            </ul>
+          </div>
+        </div>
       )}
     </div>
   );

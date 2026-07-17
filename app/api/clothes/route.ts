@@ -43,32 +43,37 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
+  try {
+    const session = await getSession();
+    if (!session) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
 
-  const body = await req.json();
-  const { title, description, size, brand, condition, category, imageUrl, price } = body;
-  if (!title || !size || !brand || !condition || !imageUrl)
-    return NextResponse.json({ error: "Faltan campos obligatorios" }, { status: 400 });
+    const body = await req.json();
+    const { title, description, size, brand, condition, category, imageUrl, price } = body;
+    if (!title || !size || !brand || !condition || !imageUrl)
+      return NextResponse.json({ error: "Faltan campos obligatorios" }, { status: 400 });
 
-  const item = await prisma.clothingItem.create({
-    data: {
-      title, description: description ?? "", size, brand, condition,
-      category: category ?? "Ropa",
-      imageUrl,
-      price: price ? parseFloat(price) : null,
-      latitude: session.latitude,
-      longitude: session.longitude,
-      userId: session.id,
-      // Premium listings stay up indefinitely; free ones expire and move to history.
-      expiresAt: session.isPremium ? null : new Date(Date.now() + FREE_LISTING_LIFETIME_DAYS * 24 * 60 * 60 * 1000),
-    },
-  });
+    const item = await prisma.clothingItem.create({
+      data: {
+        title, description: description ?? "", size, brand, condition,
+        category: category ?? "Ropa",
+        imageUrl,
+        price: price ? parseFloat(price) : null,
+        latitude: session.latitude,
+        longitude: session.longitude,
+        userId: session.id,
+        // Premium listings stay up indefinitely; free ones expire and move to history.
+        expiresAt: session.isPremium ? null : new Date(Date.now() + FREE_LISTING_LIFETIME_DAYS * 24 * 60 * 60 * 1000),
+      },
+    });
 
-  await prisma.user.update({ where: { id: session.id }, data: { credits: { increment: 2 } } });
-  await prisma.transaction.create({
-    data: { userId: session.id, amount: 0, type: "CREDIT_PURCHASE", status: "COMPLETED", meta: JSON.stringify({ note: "+2 créditos por publicar prenda", itemId: item.id }) },
-  });
+    await prisma.user.update({ where: { id: session.id }, data: { credits: { increment: 2 } } });
+    await prisma.transaction.create({
+      data: { userId: session.id, amount: 0, type: "CREDIT_PURCHASE", status: "COMPLETED", meta: JSON.stringify({ note: "+2 créditos por publicar prenda", itemId: item.id }) },
+    });
 
-  return NextResponse.json({ item, creditsEarned: 2 }, { status: 201 });
+    return NextResponse.json({ item, creditsEarned: 2 }, { status: 201 });
+  } catch (err) {
+    console.error("Create clothing item error:", err);
+    return NextResponse.json({ error: "Error publicando la prenda" }, { status: 500 });
+  }
 }

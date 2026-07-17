@@ -2,7 +2,10 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ShieldAlert, Ban, Undo2, Check, X, UserCog, KeyRound } from "lucide-react";
+import {
+  ShieldAlert, Ban, Undo2, Check, X, UserCog, KeyRound, Download,
+  Users, Receipt, BarChart3, Flag,
+} from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface Report {
@@ -19,6 +22,23 @@ interface Report {
   reviewedBy: { id: string; name: string } | null;
 }
 
+interface Stats {
+  totalUsers: number; bannedUsers: number; premiumUsers: number; verifiedUsers: number;
+  totalItems: number; totalMatches: number; pendingReports: number; resolvedReports: number;
+  escrowTransactions: number; gmv: number; commissionEarned: number; creditsAndPremiumRevenue: number;
+}
+
+interface AdminUser {
+  id: string; name: string; fullName: string; email: string; phone: string; role: string;
+  bannedAt: string | null; isPremium: boolean; premiumUntil: string | null; verified: boolean;
+  credits: number; balance: number; ratingAvg: number; ratingCount: number; createdAt: string;
+}
+
+interface AdminTx {
+  id: string; amount: number; type: string; status: string; createdAt: string;
+  user: { id: string; name: string; email: string };
+}
+
 const STATUS_LABEL: Record<string, string> = {
   PENDING: "Pendiente",
   REVIEWED: "Revisado",
@@ -26,10 +46,22 @@ const STATUS_LABEL: Record<string, string> = {
   DISMISSED: "Descartado",
 };
 
+const TABS = [
+  { id: "resumen", label: "Resumen", icon: BarChart3 },
+  { id: "reportes", label: "Reportes", icon: Flag },
+  { id: "usuarios", label: "Usuarios", icon: Users },
+  { id: "transacciones", label: "Transacciones", icon: Receipt },
+] as const;
+
 export default function AdminPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("resumen");
   const [reports, setReports] = useState<Report[]>([]);
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [userQuery, setUserQuery] = useState("");
+  const [txs, setTxs] = useState<AdminTx[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [promoteEmail, setPromoteEmail] = useState("");
@@ -52,9 +84,28 @@ export default function AdminPage() {
     else setError(data.error ?? "Error al cargar reportes");
   }, []);
 
+  const fetchStats = useCallback(async () => {
+    const res = await fetch("/api/admin/stats");
+    if (res.ok) setStats(await res.json());
+  }, []);
+
+  const fetchUsers = useCallback(async (q: string) => {
+    const res = await fetch(`/api/admin/users${q ? `?q=${encodeURIComponent(q)}` : ""}`);
+    if (res.ok) setUsers(await res.json());
+  }, []);
+
+  const fetchTxs = useCallback(async () => {
+    const res = await fetch("/api/admin/transactions");
+    if (res.ok) setTxs(await res.json());
+  }, []);
+
   useEffect(() => {
-    if (user?.role === "ADMIN") fetchReports();
-  }, [user, fetchReports]);
+    if (user?.role !== "ADMIN") return;
+    fetchReports();
+    fetchStats();
+    fetchUsers("");
+    fetchTxs();
+  }, [user, fetchReports, fetchStats, fetchUsers, fetchTxs]);
 
   async function resolveReport(id: string, status: string) {
     setBusyId(id);
@@ -71,7 +122,7 @@ export default function AdminPage() {
   async function refundReport(id: string) {
     setBusyId(id);
     const res = await fetch(`/api/admin/reports/${id}/refund`, { method: "POST" });
-    if (res.ok) await fetchReports();
+    if (res.ok) { await fetchReports(); await fetchStats(); }
     else setError((await res.json()).error ?? "Error");
     setBusyId(null);
   }
@@ -85,7 +136,7 @@ export default function AdminPage() {
     });
     const data = await res.json();
     setPromoteMsg(res.ok ? `${data.user.email} ahora es ${role}` : data.error);
-    if (res.ok) setPromoteEmail("");
+    if (res.ok) { setPromoteEmail(""); await fetchUsers(userQuery); }
     setPromoteBusy(false);
   }
 
@@ -109,7 +160,7 @@ export default function AdminPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ banned }),
     });
-    if (res.ok) await fetchReports();
+    if (res.ok) { await fetchReports(); await fetchUsers(userQuery); }
     else setError((await res.json()).error ?? "Error");
     setBusyId(null);
   }
@@ -121,123 +172,216 @@ export default function AdminPage() {
 
   return (
     <div className="max-w-lg mx-auto px-4 pt-6 pb-10">
-      <div className="flex items-center gap-2 mb-6">
+      <div className="flex items-center gap-2 mb-4">
         <ShieldAlert size={22} className="text-rose-500" />
-        <h1 className="font-bold text-slate-800 text-xl">Moderación</h1>
+        <h1 className="font-bold text-slate-800 text-xl">Administración</h1>
+      </div>
+
+      <div className="flex gap-1 bg-slate-100 rounded-xl p-1 mb-5 overflow-x-auto">
+        {TABS.map(({ id, label, icon: Icon }) => (
+          <button key={id} onClick={() => setTab(id)}
+            className={`flex-1 flex items-center justify-center gap-1 text-xs font-semibold px-2 py-2 rounded-lg whitespace-nowrap transition ${tab === id ? "bg-white text-rose-500 shadow-sm" : "text-slate-500"}`}>
+            <Icon size={13} /> {label}
+          </button>
+        ))}
       </div>
 
       {error && <p className="text-xs text-rose-500 mb-4">{error}</p>}
 
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-4">
-        <p className="text-xs font-bold text-slate-600 flex items-center gap-1.5 mb-2"><UserCog size={13} /> Otorgar / quitar admin</p>
-        <div className="flex gap-2">
-          <input value={promoteEmail} onChange={(e) => setPromoteEmail(e.target.value)} placeholder="email@ejemplo.com"
-            className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-rose-300" />
-          <button onClick={() => handlePromote("ADMIN")} disabled={promoteBusy || !promoteEmail.trim()}
-            className="text-xs bg-slate-700 text-white font-semibold px-2.5 py-1.5 rounded-lg disabled:opacity-50">Dar admin</button>
-          <button onClick={() => handlePromote("USER")} disabled={promoteBusy || !promoteEmail.trim()}
-            className="text-xs bg-slate-100 text-slate-600 font-semibold px-2.5 py-1.5 rounded-lg disabled:opacity-50">Quitar</button>
-        </div>
-        {promoteMsg && <p className="text-[11px] text-slate-500 mt-1.5">{promoteMsg}</p>}
-      </div>
-
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-6">
-        <p className="text-xs font-bold text-slate-600 flex items-center gap-1.5 mb-2"><KeyRound size={13} /> Resetear contraseña de un usuario</p>
-        <div className="flex flex-col gap-2">
-          <input value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} placeholder="email@ejemplo.com"
-            className="border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-rose-300" />
-          <div className="flex gap-2">
-            <input value={resetPassword} onChange={(e) => setResetPassword(e.target.value)} placeholder="Contraseña nueva (mín. 6)" type="text"
-              className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-rose-300" />
-            <button onClick={handleResetPassword} disabled={resetBusy || !resetEmail.trim() || resetPassword.length < 6}
-              className="text-xs bg-slate-700 text-white font-semibold px-2.5 py-1.5 rounded-lg disabled:opacity-50">Resetear</button>
-          </div>
-        </div>
-        {resetMsg && <p className="text-[11px] text-slate-500 mt-1.5">{resetMsg}</p>}
-      </div>
-
-      <h2 className="font-semibold text-slate-700 text-sm mb-3">Pendientes ({pending.length})</h2>
-      {pending.length === 0 ? (
-        <p className="text-sm text-slate-400 mb-8">No hay reportes pendientes.</p>
-      ) : (
-        <div className="flex flex-col gap-3 mb-8">
-          {pending.map((r) => (
-            <motion.div key={r.id} layout className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-bold text-rose-500 uppercase">{r.reason}</span>
-                <span className="text-xs text-slate-400">{STATUS_LABEL[r.status]}</span>
-              </div>
-              <p className="text-sm text-slate-700 mb-2">{r.details || "Sin detalles adicionales."}</p>
-              <p className="text-xs text-slate-400 mb-1">Reportado por: {r.reporter.name} ({r.reporter.email})</p>
-              {r.reportedUser && (
-                <p className="text-xs text-slate-400 mb-1">
-                  Usuario reportado: {r.reportedUser.name} ({r.reportedUser.email})
-                  {r.reportedUser.bannedAt && <span className="text-rose-500 font-semibold"> · Suspendido</span>}
-                </p>
-              )}
-              {r.item && <p className="text-xs text-slate-400 mb-1">Prenda: {r.item.title}</p>}
-
-              <div className="flex flex-wrap gap-2 mt-3">
-                <button
-                  onClick={() => resolveReport(r.id, "RESOLVED")}
-                  disabled={busyId === r.id}
-                  className="flex items-center gap-1 text-xs bg-emerald-100 text-emerald-700 rounded-full px-3 py-1.5 hover:bg-emerald-200 transition disabled:opacity-50"
-                >
-                  <Check size={12} /> Resolver
-                </button>
-                <button
-                  onClick={() => resolveReport(r.id, "DISMISSED")}
-                  disabled={busyId === r.id}
-                  className="flex items-center gap-1 text-xs bg-slate-100 text-slate-600 rounded-full px-3 py-1.5 hover:bg-slate-200 transition disabled:opacity-50"
-                >
-                  <X size={12} /> Descartar
-                </button>
-                {r.reportedUser && !r.reportedUser.bannedAt && (
-                  <button
-                    onClick={() => toggleBan(r.reportedUser!.id, true)}
-                    disabled={busyId === r.reportedUser.id}
-                    className="flex items-center gap-1 text-xs bg-rose-100 text-rose-600 rounded-full px-3 py-1.5 hover:bg-rose-200 transition disabled:opacity-50"
-                  >
-                    <Ban size={12} /> Suspender usuario
-                  </button>
-                )}
-                {r.reportedUser?.bannedAt && (
-                  <button
-                    onClick={() => toggleBan(r.reportedUser!.id, false)}
-                    disabled={busyId === r.reportedUser.id}
-                    className="flex items-center gap-1 text-xs bg-amber-100 text-amber-700 rounded-full px-3 py-1.5 hover:bg-amber-200 transition disabled:opacity-50"
-                  >
-                    <Undo2 size={12} /> Reactivar usuario
-                  </button>
-                )}
-                {r.match && (
-                  <button
-                    onClick={() => refundReport(r.id)}
-                    disabled={busyId === r.id}
-                    className="flex items-center gap-1 text-xs bg-blue-100 text-blue-700 rounded-full px-3 py-1.5 hover:bg-blue-200 transition disabled:opacity-50"
-                  >
-                    <Undo2 size={12} /> Reembolsar comprador
-                  </button>
-                )}
-              </div>
-            </motion.div>
-          ))}
+      {tab === "resumen" && stats && (
+        <div className="grid grid-cols-2 gap-3">
+          <StatCard label="Usuarios totales" value={stats.totalUsers} />
+          <StatCard label="Suspendidos" value={stats.bannedUsers} tone="rose" />
+          <StatCard label="Premium activos" value={stats.premiumUsers} tone="amber" />
+          <StatCard label="Verificados" value={stats.verifiedUsers} tone="blue" />
+          <StatCard label="Prendas publicadas" value={stats.totalItems} />
+          <StatCard label="Matches totales" value={stats.totalMatches} />
+          <StatCard label="Reportes pendientes" value={stats.pendingReports} tone="rose" />
+          <StatCard label="Reportes resueltos" value={stats.resolvedReports} tone="emerald" />
+          <StatCard label="Ventas por custodia" value={stats.escrowTransactions} />
+          <StatCard label="Volumen transado (GMV)" value={`$${stats.gmv.toFixed(2)}`} tone="emerald" />
+          <StatCard label="Comisión ganada" value={`$${stats.commissionEarned.toFixed(2)}`} tone="emerald" />
+          <StatCard label="Ingresos créditos/Premium" value={`$${stats.creditsAndPremiumRevenue.toFixed(2)}`} tone="emerald" />
         </div>
       )}
 
-      <h2 className="font-semibold text-slate-700 text-sm mb-3">Resueltos ({resolved.length})</h2>
-      {resolved.length === 0 ? (
-        <p className="text-sm text-slate-400">Todavía no resolviste ningún reporte.</p>
-      ) : (
-        <div className="flex flex-col gap-2">
-          {resolved.map((r) => (
-            <div key={r.id} className="bg-slate-50 rounded-xl p-3 text-xs text-slate-500">
-              <span className="font-semibold">{r.reason}</span> · {STATUS_LABEL[r.status]}
-              {r.reviewedBy && <span> · por {r.reviewedBy.name}</span>}
+      {tab === "reportes" && (
+        <>
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-4">
+            <p className="text-xs font-bold text-slate-600 flex items-center gap-1.5 mb-2"><UserCog size={13} /> Otorgar / quitar admin</p>
+            <div className="flex gap-2">
+              <input value={promoteEmail} onChange={(e) => setPromoteEmail(e.target.value)} placeholder="email@ejemplo.com"
+                className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-rose-300" />
+              <button onClick={() => handlePromote("ADMIN")} disabled={promoteBusy || !promoteEmail.trim()}
+                className="text-xs bg-slate-700 text-white font-semibold px-2.5 py-1.5 rounded-lg disabled:opacity-50">Dar admin</button>
+              <button onClick={() => handlePromote("USER")} disabled={promoteBusy || !promoteEmail.trim()}
+                className="text-xs bg-slate-100 text-slate-600 font-semibold px-2.5 py-1.5 rounded-lg disabled:opacity-50">Quitar</button>
             </div>
-          ))}
-        </div>
+            {promoteMsg && <p className="text-[11px] text-slate-500 mt-1.5">{promoteMsg}</p>}
+          </div>
+
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-6">
+            <p className="text-xs font-bold text-slate-600 flex items-center gap-1.5 mb-2"><KeyRound size={13} /> Resetear contraseña de un usuario</p>
+            <div className="flex flex-col gap-2">
+              <input value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} placeholder="email@ejemplo.com"
+                className="border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-rose-300" />
+              <div className="flex gap-2">
+                <input value={resetPassword} onChange={(e) => setResetPassword(e.target.value)} placeholder="Contraseña nueva (mín. 6)" type="text"
+                  className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-rose-300" />
+                <button onClick={handleResetPassword} disabled={resetBusy || !resetEmail.trim() || resetPassword.length < 6}
+                  className="text-xs bg-slate-700 text-white font-semibold px-2.5 py-1.5 rounded-lg disabled:opacity-50">Resetear</button>
+              </div>
+            </div>
+            {resetMsg && <p className="text-[11px] text-slate-500 mt-1.5">{resetMsg}</p>}
+          </div>
+
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-semibold text-slate-700 text-sm">Pendientes ({pending.length})</h2>
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- triggers a file download, not a page navigation */}
+            <a href="/api/admin/reports/export" className="flex items-center gap-1 text-xs text-slate-500 hover:text-rose-500"><Download size={12} /> CSV</a>
+          </div>
+          {pending.length === 0 ? (
+            <p className="text-sm text-slate-400 mb-8">No hay reportes pendientes.</p>
+          ) : (
+            <div className="flex flex-col gap-3 mb-8">
+              {pending.map((r) => (
+                <motion.div key={r.id} layout className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-bold text-rose-500 uppercase">{r.reason}</span>
+                    <span className="text-xs text-slate-400">{STATUS_LABEL[r.status]}</span>
+                  </div>
+                  <p className="text-sm text-slate-700 mb-2">{r.details || "Sin detalles adicionales."}</p>
+                  <p className="text-xs text-slate-400 mb-1">Reportado por: {r.reporter.name} ({r.reporter.email})</p>
+                  {r.reportedUser && (
+                    <p className="text-xs text-slate-400 mb-1">
+                      Usuario reportado: {r.reportedUser.name} ({r.reportedUser.email})
+                      {r.reportedUser.bannedAt && <span className="text-rose-500 font-semibold"> · Suspendido</span>}
+                    </p>
+                  )}
+                  {r.item && <p className="text-xs text-slate-400 mb-1">Prenda: {r.item.title}</p>}
+
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    <button onClick={() => resolveReport(r.id, "RESOLVED")} disabled={busyId === r.id}
+                      className="flex items-center gap-1 text-xs bg-emerald-100 text-emerald-700 rounded-full px-3 py-1.5 hover:bg-emerald-200 transition disabled:opacity-50">
+                      <Check size={12} /> Resolver
+                    </button>
+                    <button onClick={() => resolveReport(r.id, "DISMISSED")} disabled={busyId === r.id}
+                      className="flex items-center gap-1 text-xs bg-slate-100 text-slate-600 rounded-full px-3 py-1.5 hover:bg-slate-200 transition disabled:opacity-50">
+                      <X size={12} /> Descartar
+                    </button>
+                    {r.reportedUser && !r.reportedUser.bannedAt && (
+                      <button onClick={() => toggleBan(r.reportedUser!.id, true)} disabled={busyId === r.reportedUser.id}
+                        className="flex items-center gap-1 text-xs bg-rose-100 text-rose-600 rounded-full px-3 py-1.5 hover:bg-rose-200 transition disabled:opacity-50">
+                        <Ban size={12} /> Suspender usuario
+                      </button>
+                    )}
+                    {r.reportedUser?.bannedAt && (
+                      <button onClick={() => toggleBan(r.reportedUser!.id, false)} disabled={busyId === r.reportedUser.id}
+                        className="flex items-center gap-1 text-xs bg-amber-100 text-amber-700 rounded-full px-3 py-1.5 hover:bg-amber-200 transition disabled:opacity-50">
+                        <Undo2 size={12} /> Reactivar usuario
+                      </button>
+                    )}
+                    {r.match && (
+                      <button onClick={() => refundReport(r.id)} disabled={busyId === r.id}
+                        className="flex items-center gap-1 text-xs bg-blue-100 text-blue-700 rounded-full px-3 py-1.5 hover:bg-blue-200 transition disabled:opacity-50">
+                        <Undo2 size={12} /> Reembolsar comprador
+                      </button>
+                    )}
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
+
+          <h2 className="font-semibold text-slate-700 text-sm mb-3">Resueltos ({resolved.length})</h2>
+          {resolved.length === 0 ? (
+            <p className="text-sm text-slate-400">Todavía no resolviste ningún reporte.</p>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {resolved.map((r) => (
+                <div key={r.id} className="bg-slate-50 rounded-xl p-3 text-xs text-slate-500">
+                  <span className="font-semibold">{r.reason}</span> · {STATUS_LABEL[r.status]}
+                  {r.reviewedBy && <span> · por {r.reviewedBy.name}</span>}
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
+
+      {tab === "usuarios" && (
+        <>
+          <div className="flex items-center gap-2 mb-4">
+            <input value={userQuery} onChange={(e) => { setUserQuery(e.target.value); fetchUsers(e.target.value); }}
+              placeholder="Buscar por nombre o email..."
+              className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-rose-300" />
+            <a href="/api/admin/users/export" className="flex items-center gap-1 text-xs text-slate-500 hover:text-rose-500 whitespace-nowrap"><Download size={12} /> CSV</a>
+          </div>
+          <div className="flex flex-col gap-2">
+            {users.map((u) => (
+              <div key={u.id} className="bg-white rounded-xl p-3 shadow-sm border border-slate-100">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-800">
+                      {u.name} {u.role === "ADMIN" && <span className="text-[10px] bg-slate-700 text-white rounded-full px-1.5 py-0.5 ml-1">ADMIN</span>}
+                      {u.bannedAt && <span className="text-[10px] bg-rose-100 text-rose-600 rounded-full px-1.5 py-0.5 ml-1">Suspendido</span>}
+                    </p>
+                    <p className="text-[11px] text-slate-400">{u.fullName} · {u.email} {u.phone && `· ${u.phone}`}</p>
+                  </div>
+                  <button onClick={() => toggleBan(u.id, !u.bannedAt)} disabled={busyId === u.id}
+                    className={`text-[11px] font-semibold px-2 py-1 rounded-full disabled:opacity-50 ${u.bannedAt ? "bg-amber-100 text-amber-700" : "bg-rose-100 text-rose-600"}`}>
+                    {u.bannedAt ? "Reactivar" : "Suspender"}
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2 mt-2 text-[11px] text-slate-400">
+                  <span>{u.credits}✦ créditos</span>
+                  <span>${u.balance.toFixed(2)} saldo</span>
+                  {u.ratingCount > 0 && <span>★ {u.ratingAvg.toFixed(1)} ({u.ratingCount})</span>}
+                  {u.isPremium && <span className="text-amber-600">Premium</span>}
+                  {u.verified && <span className="text-blue-600">Verificado</span>}
+                  <span>Desde {new Date(u.createdAt).toLocaleDateString("es-AR")}</span>
+                </div>
+              </div>
+            ))}
+            {users.length === 0 && <p className="text-sm text-slate-400 text-center py-8">Sin resultados.</p>}
+          </div>
+        </>
+      )}
+
+      {tab === "transacciones" && (
+        <>
+          <div className="flex items-center justify-end mb-3">
+            <a href="/api/admin/transactions/export" className="flex items-center gap-1 text-xs text-slate-500 hover:text-rose-500"><Download size={12} /> CSV</a>
+          </div>
+          <div className="flex flex-col gap-2">
+            {txs.map((t) => (
+              <div key={t.id} className="flex items-center justify-between bg-white rounded-xl p-3 shadow-sm border border-slate-100">
+                <div>
+                  <p className="text-sm font-medium text-slate-700">{t.type}</p>
+                  <p className="text-[11px] text-slate-400">{t.user.name} ({t.user.email}) · {new Date(t.createdAt).toLocaleString("es-AR")}</p>
+                </div>
+                <p className="text-sm font-bold text-slate-700">${t.amount.toFixed(2)}</p>
+              </div>
+            ))}
+            {txs.length === 0 && <p className="text-sm text-slate-400 text-center py-8">Sin transacciones todavía.</p>}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function StatCard({ label, value, tone }: { label: string; value: string | number; tone?: "rose" | "amber" | "emerald" | "blue" }) {
+  const toneClasses: Record<string, string> = {
+    rose: "bg-rose-50 border-rose-100 text-rose-700",
+    amber: "bg-amber-50 border-amber-100 text-amber-700",
+    emerald: "bg-emerald-50 border-emerald-100 text-emerald-700",
+    blue: "bg-blue-50 border-blue-100 text-blue-700",
+  };
+  return (
+    <div className={`rounded-2xl p-3 border ${tone ? toneClasses[tone] : "bg-slate-50 border-slate-100 text-slate-700"}`}>
+      <p className="text-lg font-extrabold">{value}</p>
+      <p className="text-[11px] opacity-80">{label}</p>
     </div>
   );
 }

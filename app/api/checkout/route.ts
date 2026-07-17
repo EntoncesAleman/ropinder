@@ -22,6 +22,7 @@ export async function POST(req: NextRequest) {
     const base = current?.isPremium && current.premiumUntil && current.premiumUntil > new Date() ? current.premiumUntil : new Date();
     updates.isPremium = true;
     updates.premiumUntil = new Date(base.getTime() + pack.days * 24 * 60 * 60 * 1000);
+    updates.premiumPlan = packId;
   }
 
   await prisma.user.update({ where: { id: session.id }, data: updates });

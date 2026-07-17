@@ -2,14 +2,14 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Zap, DollarSign, Crown, LogOut, Rocket, Plus, Shirt, Star, Pencil, BadgeCheck, Store, Lock, FileText, MapPin } from "lucide-react";
+import { Zap, DollarSign, Crown, LogOut, Rocket, Plus, Shirt, Star, Pencil, BadgeCheck, Store, Lock, FileText, MapPin, Receipt, LifeBuoy, Megaphone } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import Link from "next/link";
 import Image from "next/image";
 
 interface ClothingItem {
   id: string; title: string; brand: string; size: string; condition: string;
-  imageUrl: string; price: number | null; isBumped: boolean; createdAt: string;
+  imageUrl: string; price: number | null; isBumped: boolean; isAd: boolean; createdAt: string;
 }
 
 interface WithdrawInfo {
@@ -76,6 +76,14 @@ export default function ProfilePage() {
     const res = await fetch(`/api/clothes/${itemId}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "bump" }) });
     const data = await res.json();
     if (!res.ok) { alert(data.error); } else { await refresh(); await fetchItems(); }
+    setBumping(null);
+  }
+
+  async function handleToggleAd(itemId: string) {
+    setBumping(itemId);
+    const res = await fetch(`/api/clothes/${itemId}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "toggleAd" }) });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error); } else { await fetchItems(); }
     setBumping(null);
   }
 
@@ -303,11 +311,18 @@ export default function ProfilePage() {
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-slate-800 text-sm truncate">{item.title}</p>
                 <p className="text-xs text-slate-400">{item.brand} · Talle {item.size}</p>
-                {item.isBumped && (
-                  <span className="inline-flex items-center gap-1 text-xs bg-amber-100 text-amber-700 rounded-full px-2 py-0.5 mt-1">
-                    <Rocket size={10} /> Destacada
-                  </span>
-                )}
+                <div className="flex gap-1 mt-1">
+                  {item.isBumped && (
+                    <span className="inline-flex items-center gap-1 text-xs bg-amber-100 text-amber-700 rounded-full px-2 py-0.5">
+                      <Rocket size={10} /> Destacada
+                    </span>
+                  )}
+                  {item.isAd && (
+                    <span className="inline-flex items-center gap-1 text-xs bg-violet-100 text-violet-700 rounded-full px-2 py-0.5">
+                      <Megaphone size={10} /> Publicidad
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="flex flex-col items-end gap-1">
                 {item.price && <p className="text-xs font-bold text-emerald-600">${item.price}</p>}
@@ -315,6 +330,12 @@ export default function ProfilePage() {
                   <button onClick={() => handleBump(item.id)} disabled={bumping === item.id}
                     className="flex items-center gap-1 text-xs bg-amber-100 text-amber-700 rounded-full px-2 py-1 hover:bg-amber-200 transition disabled:opacity-50">
                     <Rocket size={10} /> {bumping === item.id ? "..." : "Bump (3✦)"}
+                  </button>
+                )}
+                {user.premiumPlan === "premium_yearly" && user.isPremium && (
+                  <button onClick={() => handleToggleAd(item.id)} disabled={bumping === item.id}
+                    className={`flex items-center gap-1 text-xs rounded-full px-2 py-1 transition disabled:opacity-50 ${item.isAd ? "bg-violet-200 text-violet-800" : "bg-violet-100 text-violet-700 hover:bg-violet-200"}`}>
+                    <Megaphone size={10} /> {item.isAd ? "Quitar de publicidad" : "Poner en publicidad"}
                   </button>
                 )}
               </div>
@@ -352,6 +373,14 @@ export default function ProfilePage() {
           <MapPin size={15} /> {updatingLocation ? "Detectando ubicación..." : "Actualizar mi ubicación"}
         </button>
         {locationMsg && <p className="text-xs text-slate-400 mb-3 -mt-2">{locationMsg}</p>}
+
+        <Link href="/history" className="flex items-center gap-2 text-sm text-slate-600 hover:text-rose-500 mb-3">
+          <Receipt size={15} /> Historial de compras/ventas
+        </Link>
+
+        <Link href="/support" className="flex items-center gap-2 text-sm text-slate-600 hover:text-rose-500 mb-3">
+          <LifeBuoy size={15} /> Ayuda / Soporte
+        </Link>
 
         <Link href="/terms" className="flex items-center gap-2 text-sm text-slate-600 hover:text-rose-500">
           <FileText size={15} /> Términos y condiciones

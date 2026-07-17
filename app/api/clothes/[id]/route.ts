@@ -28,5 +28,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ ok: true, creditsSpent: session.isPremium ? 0 : BUMP_COST });
   }
 
+  if (action === "toggleAd") {
+    if (session.premiumPlan !== "premium_yearly" || !session.isPremium)
+      return NextResponse.json({ error: "Solo disponible con el plan Premium anual" }, { status: 403 });
+
+    const item = await prisma.clothingItem.findUnique({ where: { id } });
+    if (!item || item.userId !== session.id)
+      return NextResponse.json({ error: "No encontrado" }, { status: 404 });
+
+    const updated = await prisma.clothingItem.update({ where: { id }, data: { isAd: !item.isAd } });
+    return NextResponse.json({ ok: true, isAd: updated.isAd });
+  }
+
   return NextResponse.json({ error: "Acción desconocida" }, { status: 400 });
 }

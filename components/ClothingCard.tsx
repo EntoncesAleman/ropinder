@@ -1,6 +1,6 @@
 "use client";
 import { motion, useMotionValue, useTransform, PanInfo } from "framer-motion";
-import { Tag, Ruler, Star, MapPin } from "lucide-react";
+import { Tag, Ruler, Star, MapPin, Megaphone } from "lucide-react";
 
 export interface ClothingItemWithDistance {
   id: string;
@@ -10,6 +10,7 @@ export interface ClothingItemWithDistance {
   condition: string;
   imageUrl: string;
   distance: number;
+  isAd?: boolean;
   user: { id: string; name: string; avatar: string; ratingAvg?: number; ratingCount?: number };
 }
 
@@ -74,6 +75,11 @@ export function ClothingCard({ item, onSwipe, isTop }: Props) {
             draggable={false}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+          {item.isAd && (
+            <span className="absolute top-4 left-4 flex items-center gap-1 text-[10px] font-semibold bg-violet-500 text-white rounded-full px-2.5 py-1">
+              <Megaphone size={10} /> Publicidad
+            </span>
+          )}
           <div className="absolute bottom-4 left-4 right-4 text-white">
             <h2 className="text-2xl font-bold drop-shadow">{item.title}</h2>
             <div className="flex items-center gap-1 mt-1 text-sm opacity-90">

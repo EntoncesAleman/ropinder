@@ -20,17 +20,28 @@ Formas de sumar otro admin (por ejemplo un moderador de confianza):
 
 QUÉ PUEDE HACER EL ADMIN (/admin)
 -----------------------------------
-- Ver la cola de reportes (usuarios reportando otros usuarios o prendas,
-  incluye motivo "Imagen generada por IA o engañosa").
-- Resolver un reporte (marcarlo resuelto) o descartarlo.
-- Suspender (banear) o reactivar una cuenta de usuario. Un usuario
-  suspendido no puede iniciar sesión hasta que lo reactivés.
-- Reembolsar al comprador de un match reportado: si el pago ya se le
-  liberó al vendedor, el sistema le saca la plata de su saldo (balance)
-  y se la devuelve al comprador automáticamente.
-- Otorgar o quitar el rol admin a cualquier email registrado.
-- Resetear la contraseña de cualquier usuario (para casos de soporte,
-  cuenta bloqueada, etc.) sin necesitar su contraseña actual.
+El panel tiene 4 pestañas:
+
+- RESUMEN: estadísticas generales — usuarios totales, suspendidos,
+  Premium activos, verificados, prendas publicadas, matches, reportes
+  pendientes/resueltos, volumen transado (GMV), comisión ganada, e
+  ingresos por créditos/Premium.
+- REPORTES: la cola de moderación (usuarios reportando otros usuarios
+  o prendas, incluye motivo "Imagen generada por IA o engañosa").
+  Resolver/descartar reportes, suspender/reactivar cuentas, reembolsar
+  al comprador de un match reportado. También desde acá: otorgar/quitar
+  el rol admin a cualquier email, y resetear la contraseña de cualquier
+  usuario (sin necesitar la actual — para soporte, cuentas bloqueadas).
+- USUARIOS: lista completa y buscable de todos los usuarios (nombre,
+  nombre y apellido, email, teléfono, créditos, saldo, rating, estado),
+  con botón para suspender/reactivar directo desde la lista.
+- TRANSACCIONES: todo el historial de movimientos de la plataforma
+  (compras de créditos/Premium, pagos en custodia, liberaciones,
+  reembolsos, retiros), por usuario.
+
+Cada una de las tres últimas pestañas tiene un botón "CSV" arriba a la
+derecha para descargar esos datos como planilla (Excel/Google Sheets
+los abre directo).
 
 CÓMO FUNCIONA LA PLATA (custodia / escrow)
 --------------------------------------------
@@ -51,12 +62,21 @@ CÓMO FUNCIONA LA PLATA (custodia / escrow)
 
 PREMIUM — PLANES
 --------------------
-Ahora hay 4 duraciones en vez de solo mensual: 1 día, 1 semana, 1 mes y
-1 año (precios de referencia en ARS en lib/pricing.ts — hay que ajustarlos
-según inflación real antes de cobrar en serio). Comprar un plan mientras
-ya tenés Premium activo extiende la fecha de vencimiento en vez de
-reiniciarla. El plan mensual y el anual incluyen la insignia de
-verificado; el diario y el semanal no.
+Hay 4 duraciones: 1 día, 1 semana, 1 mes y 1 año (precios de referencia
+en ARS en lib/pricing.ts — hay que ajustarlos según inflación real antes
+de cobrar en serio). Comprar un plan mientras ya tenés Premium activo
+extiende la fecha de vencimiento en vez de reiniciarla. El plan mensual
+y el anual incluyen la insignia de verificado; el diario y el semanal no.
+
+ESPACIO PUBLICITARIO (solo Premium anual)
+----------------------------------------------
+Un vendedor con el plan Premium ANUAL puede marcar una de sus prendas
+como "Publicidad" desde su perfil (Mis prendas → "Poner en publicidad").
+Esa prenda aparece pinneada al principio del feed de TODOS los usuarios,
+sin importar la distancia/radio configurado, con una etiqueta violeta de
+"Publicidad" bien visible. Es la única forma de acceder a ese espacio
+por ahora — no hay una venta de espacio publicitario aparte para marcas
+que no sean usuarias con Premium anual.
 
 CUENTA DE USUARIO
 --------------------
@@ -128,20 +148,67 @@ simulado (no mueve plata real). Para cobrar de verdad hace falta:
 3. Pasarme esas credenciales (como variables de entorno, nunca en el
    código) para conectar el checkout real.
 
-MAIL REAL PARA VERIFICACIÓN — PENDIENTE
-------------------------------------------
-Para que el código de verificación del registro se mande por mail de
-verdad (y no se muestre en pantalla), hace falta conectar un proveedor:
-Resend (más simple, gratis hasta 3000 mails/mes) o Gmail SMTP con una
-contraseña de aplicación. Avisame cuál preferís y las credenciales.
+MAIL REAL (VERIFICACIÓN Y SOPORTE) — CASI LISTO
+------------------------------------------------
+El envío de mail soporta dos proveedores, en este orden de prioridad:
+1. Resend (RESEND_API_KEY) — si está configurado, se usa este.
+2. Gmail SMTP (GMAIL_USER + GMAIL_APP_PASSWORD) — se usa si no hay Resend.
+3. Si ninguno está configurado: modo prueba (el código se muestra en
+   pantalla en vez de mandarse, y las consultas de soporte se loguean
+   en el servidor en vez de enviarse).
 
-IDEAS PARA SEGUIR SUMANDO
-----------------------------
-- Push notifications reales (hoy hay un centro de notificaciones dentro
-  de la app, pero notificaciones push nativas necesitan Firebase).
-- Filtro automático de imágenes de IA (necesita un servicio pago).
-- Chat de soporte / contacto directo con el equipo.
-- Historial de compras/ventas exportable.
+Para activar Gmail SMTP hace falta agregar estas dos variables de
+entorno en Vercel (Project Settings → Environment Variables):
+  GMAIL_USER = la dirección de Gmail que envía los mails
+  GMAIL_APP_PASSWORD = la contraseña de aplicación de 16 caracteres
+Los mails de soporte que manda un usuario van a SOPORTE_EMAIL (o por
+default a Soporte.Ropinder@gmail.com — se puede pisar con la variable
+de entorno SUPPORT_EMAIL).
+
+CHAT DE SOPORTE (/support)
+-------------------------------
+Bot simple con menú de temas frecuentes (cómo funciona el pago, cómo
+pedir un reembolso, cómo retirar plata, Premium/verificación, cambio de
+contraseña, cuenta suspendida) con respuestas ya escritas. Si el usuario
+necesita hablar con una persona, hay un botón que manda un mail directo
+a Soporte.Ropinder@gmail.com con su consulta (usa el mismo sistema de
+mail de arriba).
+
+HISTORIAL DE COMPRAS/VENTAS
+--------------------------------
+Cada usuario tiene su propio historial en /history (accesible desde su
+perfil), con botón de descarga CSV. El admin ve el historial de TODOS
+los usuarios en la pestaña "Transacciones" del panel, también
+exportable.
+
+PUSH NOTIFICATIONS REALES — PENDIENTE (dijiste que tenés Firebase)
+------------------------------------------------------------------------
+Ya armé la tabla en la base (PushToken) para guardar los tokens de
+dispositivo de cada usuario, lista para cuando conectemos Firebase Cloud
+Messaging de verdad. Hoy en día lo que hay es el centro de
+notificaciones DENTRO de la app (la campanita), que ya avisa de match
+nuevo, mensaje nuevo y reporte resuelto — pero no llega como
+notificación push nativa al celular si la app está cerrada.
+
+Para conectar el push real necesito de tu proyecto de Firebase:
+1. El archivo de credenciales de cuenta de servicio (JSON) del proyecto
+   Firebase (Project Settings → Service Accounts → Generate new private
+   key).
+2. La VAPID key pública (Project Settings → Cloud Messaging → Web Push
+   certificates), para poder pedir permiso de notificaciones desde el
+   navegador/WebView.
+Pasame esos dos datos (como variables de entorno, no en el código) y
+conecto el envío real.
+
+FILTRO DE IMÁGENES GENERADAS POR IA — PENDIENTE
+----------------------------------------------------
+No existe una forma confiable y gratuita de detectar automáticamente si
+una foto fue generada por IA — los detectores reales (Hive, Sightengine,
+etc.) son servicios pagos con su propia cuenta/API key, y ninguno es
+100% preciso. Por ahora el control es manual vía el motivo de reporte
+"Imagen generada por IA o engañosa" (chat y modo tienda), que cae en la
+cola de reportes para que lo revises vos. Si en algún momento querés el
+filtro automático, avisame y conectamos un servicio de detección.
 
 FORMAS DE GANAR PLATA CON LA APP
 ------------------------------------
@@ -152,4 +219,5 @@ FORMAS DE GANAR PLATA CON LA APP
 - Insignia de vendedor verificado (paga, o incluida en Premium
   mensual/anual) — ya implementado.
 - Fee de retiro entre 48hs y 72hs (5%) — ya implementado.
-- Espacio publicitario para marcas/boutiques dentro del feed — pendiente.
+- Espacio publicitario en el feed, exclusivo para Premium anual — ya
+  implementado.

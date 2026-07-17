@@ -20,6 +20,7 @@ model User {
   longitude Float   @default(-58.53)
   isPremium Boolean @default(false)
   premiumUntil DateTime?
+  premiumPlan  String?
   credits   Int     @default(5)
   balance   Float   @default(0.0)
   role          String  @default("USER")
@@ -45,6 +46,7 @@ model User {
   ratingsReceived  Rating[]      @relation("RatingsReceived")
   favorites        Favorite[]
   notifications    Notification[]
+  pushTokens       PushToken[]
 }
 
 model ClothingItem {
@@ -59,6 +61,7 @@ model ClothingItem {
   price       Float?
   isBumped    Boolean  @default(false)
   bumpedAt    DateTime?
+  isAd        Boolean  @default(false)
   latitude    Float
   longitude   Float
   userId      String
@@ -186,6 +189,16 @@ model Notification {
   link      String    @default("")
   readAt    DateTime?
   createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model PushToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  platform  String   @default("web")
+  createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
 }

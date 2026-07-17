@@ -25,12 +25,15 @@ export async function GET(request: NextRequest) {
     orderBy: [{ isBumped: "desc" }, { bumpedAt: "desc" }, { createdAt: "desc" }],
   });
 
-  const nearby = items
-    .map((item) => ({ ...item, distance: haversineKm(lat, lng, item.latitude, item.longitude) }))
-    .filter((item) => item.distance <= radius)
+  const withDistance = items.map((item) => ({ ...item, distance: haversineKm(lat, lng, item.latitude, item.longitude) }));
+
+  // Sponsored (annual Premium) items ignore the radius filter and always lead the feed.
+  const ads = withDistance.filter((item) => item.isAd);
+  const nearby = withDistance
+    .filter((item) => !item.isAd && item.distance <= radius)
     .sort((a, b) => (b.isBumped ? 1 : 0) - (a.isBumped ? 1 : 0) || a.distance - b.distance);
 
-  return NextResponse.json(nearby);
+  return NextResponse.json([...ads, ...nearby]);
 }
 
 export async function POST(req: NextRequest) {

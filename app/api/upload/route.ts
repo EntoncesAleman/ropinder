@@ -33,6 +33,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ url: blob.url });
   }
 
+  if (process.env.VERCEL) {
+    return NextResponse.json(
+      { error: "Falta configurar el almacenamiento de imágenes (BLOB_READ_WRITE_TOKEN) en el proyecto de Vercel." },
+      { status: 500 }
+    );
+  }
+
   const bytes = await file.arrayBuffer();
   const buffer = Buffer.from(bytes);
   const uploadDir = path.join(process.cwd(), "public", "uploads");

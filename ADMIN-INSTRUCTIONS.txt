@@ -274,6 +274,14 @@ medio), pero en Vercel eso seguiría sin persistir — así que este paso
 es importante hacerlo antes de que alguien publique una prenda de
 verdad.
 
+ESTADO ACTUAL (17/7/2026): ya confirmaste que JWT_SECRET está cargado y
+tildado en Production, agregaste GMAIL_USER/GMAIL_APP_PASSWORD, e
+hiciste redeploy — el build pasó (dpl_FXTc7mNKyUpHyseB9wTdYPkQWaah,
+READY). Todo este batch (Herramientas/SEO, Ropero/Perfil, GPS
+obligatorio, ficha de usuario, lista negra, Google Sign-In, fix de
+fotos) ya está en producción. Todavía falta activar Vercel Blob (paso
+de arriba) para que las fotos persistan de verdad.
+
 IMPORTANTE — BASE DE DATOS DE PRODUCCIÓN
 -------------------------------------------
 La app en Vercel usa Turso (SQLite remoto), no el archivo local dev.db.
@@ -332,9 +340,12 @@ perfil), con botón de descarga CSV. El admin ve el historial de TODOS
 los usuarios en la pestaña "Transacciones" del panel, también
 exportable.
 
-PUSH NOTIFICATIONS REALES — CÓDIGO LISTO, FALTAN 2 VALORES DE FIREBASE
-------------------------------------------------------------------------------
-Todo el circuito está armado de punta a punta:
+PUSH NOTIFICATIONS REALES — CONFIGURADO (17/7/2026), FALTA CARGARLO EN VERCEL
+------------------------------------------------------------------------------------
+Ya me pasaste el apiKey y el appId reales desde Firebase Console, y de
+paso corregí un typo que tenía yo en el messagingSenderId (le sobraba
+un dígito) — con el valor viejo, la generación del token de FCM habría
+fallado silenciosamente. Todo el circuito está armado de punta a punta:
 - lib/push.ts manda el push desde el servidor con firebase-admin, y está
   enganchado a notify() (lib/notify.ts) — el mismo helper que dispara la
   campanita interna. O sea que match nuevo, mensaje nuevo y reporte
@@ -351,18 +362,16 @@ tenés en el .env (project ID, client email, private key) — probado
 contra Turso de producción con un token de prueba, creado y borrado al
 toque.
 
-Lo ÚNICO que falta para que funcione de punta a punta son 2 valores que
-todavía están vacíos en el .env:
-1. NEXT_PUBLIC_FIREBASE_API_KEY
-2. NEXT_PUBLIC_FIREBASE_APP_ID
-Los sacás de Firebase Console → Project Settings → General → "Tus
-apps" → la app web (o creás una app web ahí si todavía no existe
-ninguna) → "Configuración del SDK". Son valores públicos (no son
-secretos, van embebidos en el JS del navegador igual que la VAPID key),
-así que me los podés pasar por acá sin problema. En cuanto los tenga,
-los cargo en el .env local y en las variables de entorno de Vercel, y
-las notificaciones push funcionan solas — no hace falta ningún cambio
-de código adicional.
+Ya cargué estos 5 valores en tu .env local:
+NEXT_PUBLIC_FIREBASE_API_KEY, NEXT_PUBLIC_FIREBASE_APP_ID,
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID (corregido),
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET, y ya estaba NEXT_PUBLIC_FIREBASE_PROJECT_ID.
+
+Para que funcione en producción, hay que cargar estos mismos 5 valores
+en Vercel → Settings → Environment Variables (son públicos, no son
+secretos, van embebidos en el JS del navegador igual que la VAPID key
+así que no hay riesgo en tenerlos ahí). Los valores exactos están en tu
+.env local, o me pedís que te los repita.
 
 FILTRO DE IMÁGENES GENERADAS POR IA — PENDIENTE
 ----------------------------------------------------
@@ -374,29 +383,25 @@ etc.) son servicios pagos con su propia cuenta/API key, y ninguno es
 cola de reportes para que lo revises vos. Si en algún momento querés el
 filtro automático, avisame y conectamos un servicio de detección.
 
-INICIAR SESIÓN CON GOOGLE — CÓDIGO LISTO, FALTA 1 VALOR
---------------------------------------------------------------
-Agregué el botón "Continuar con Google" en /login y /signup. Funciona
-así: el usuario toca el botón, Google confirma su identidad, y si es la
+INICIAR SESIÓN CON GOOGLE — CONFIGURADO (17/7/2026), FALTA CARGARLO EN VERCEL
+------------------------------------------------------------------------------------
+Botón "Continuar con Google" en /login y /signup. Funciona así: el
+usuario toca el botón, Google confirma su identidad, y si es la
 primera vez le pedimos su ubicación GPS (igual de obligatoria que en el
 registro manual) antes de crear la cuenta — así no se salta esa regla
 por entrar con Google. Si el email ya tiene cuenta, entra directo. Si
 el email está en la lista negra, se lo rechaza igual que en el
 registro normal.
 
-Para activarlo necesito un Client ID de Google (gratis, no necesita
-tarjeta):
-1. Andá a https://console.cloud.google.com/apis/credentials
-2. Creá un proyecto (o usá uno existente) → "Crear credenciales" →
-   "ID de cliente de OAuth" → tipo "Aplicación web".
-3. En "Orígenes de JavaScript autorizados" agregá
-   https://ropinder.vercel.app (y http://localhost:3000 si querés
-   probarlo en tu compu).
-4. Te da un Client ID (termina en .apps.googleusercontent.com) — no
-   hace falta el Client Secret para esto. Pasámelo y lo cargo en
-   NEXT_PUBLIC_GOOGLE_CLIENT_ID / GOOGLE_CLIENT_ID (local y Vercel) y
-   el botón queda funcionando. Mientras no esté cargado, el botón
-   simplemente no se muestra — no rompe nada.
+Ya cargué el Client ID que me pasaste
+(219508904975-ilnpslp319ob6irudse8vvb02hpecut8.apps.googleusercontent.com)
+en tu .env local, en GOOGLE_CLIENT_ID y NEXT_PUBLIC_GOOGLE_CLIENT_ID.
+Para que funcione en producción hay que cargar esas mismas dos
+variables (mismo valor en ambas) en Vercel → Settings → Environment
+Variables. GOOGLE_CLIENT_ID es la que usa el servidor para verificar el
+token; NEXT_PUBLIC_GOOGLE_CLIENT_ID es la misma pero expuesta al
+navegador para poder mostrar el botón — no es un secreto, es normal que
+un Client ID de Google sea público.
 
 SEGURIDAD DEL SITIO — QUÉ SE REFORZÓ Y QUÉ QUEDA
 --------------------------------------------------------
@@ -455,10 +460,5 @@ Native que se abandonó cuando pasamos a envolver la web app con
 Capacitor (android/ e ios/, que sí están en uso). No estaba en git, así
 que no se pierde ningún historial.
 
-Encontré dos carpetas más en la raíz del proyecto que NO son parte de
-la app y no las toqué porque no sé si las necesitás: Rop/ y Ropinder/
-(unos ~7MB en total). Son proyectos de Noodl (una herramienta de
-no-code, no tiene nada que ver con Next.js) con un template genérico de
-"Task Page" — parecen un prototipo viejo o una prueba de otra
-herramienta, sin relación con el código actual. Si confirmás que no las
-necesitás, las borro.
+También borré Rop/ y Ropinder/ (proyectos de Noodl sin relación con
+esta app, ~7MB) después de que confirmaste.

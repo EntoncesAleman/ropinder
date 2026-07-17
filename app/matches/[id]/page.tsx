@@ -26,6 +26,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
   const [data, setData] = useState<ChatData | null>(null);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState("");
   const [confirming, setConfirming] = useState(false);
   const [paying, setPaying] = useState(false);
   const [payAmount, setPayAmount] = useState("");
@@ -70,9 +71,16 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
     e.preventDefault();
     if (!text.trim() || sending) return;
     setSending(true);
-    await fetch(`/api/matches/${id}/messages`, {
+    setSendError("");
+    const res = await fetch(`/api/matches/${id}/messages`, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }),
     });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({ error: "No se pudo enviar el mensaje" }));
+      setSendError(data.error);
+      setSending(false);
+      return;
+    }
     setText("");
     await fetchChat();
     setSending(false);
@@ -291,6 +299,8 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
         })}
         <div ref={bottomRef} />
       </div>
+
+      {sendError && <p className="text-rose-500 text-xs text-center px-4 pt-2">{sendError}</p>}
 
       <form onSubmit={handleSend} className="flex items-center gap-2 px-4 py-3 bg-white border-t border-slate-100">
         <input

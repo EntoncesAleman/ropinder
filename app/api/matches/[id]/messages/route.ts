@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { notify } from "@/lib/notify";
+import { findContactInfoReason } from "@/lib/chatFilter";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -47,6 +48,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const match = await prisma.match.findUnique({ where: { id } });
   if (!match || (match.userAId !== session.id && match.userBId !== session.id))
     return NextResponse.json({ error: "No encontrado" }, { status: 404 });
+
+  const releaseTx = await prisma.transaction.findFirst({
+    where: { type: "ESCROW_RELEASE", meta: { contains: `"matchId":"${id}"` } },
+  });
+  if (!releaseTx) {
+    const blockedReason = findContactInfoReason(text);
+    if (blockedReason) return NextResponse.json({ error: blockedReason }, { status: 400 });
+  }
 
   const message = await prisma.message.create({
     data: { matchId: id, senderId: session.id, text: text.trim() },

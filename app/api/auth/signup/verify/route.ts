@@ -7,8 +7,8 @@ const MAX_ATTEMPTS = 5;
 
 export async function POST(req: NextRequest) {
   try {
-    const { name, fullName, email, password, code, acceptedTerms, address, latitude, longitude } = await req.json();
-    if (!name?.trim() || !fullName?.trim() || !email?.trim() || !password || !code)
+    const { name, fullName, email, password, phone, code, acceptedTerms, address, crossStreets, postalCode, latitude, longitude } = await req.json();
+    if (!name?.trim() || !fullName?.trim() || !email?.trim() || !password || !phone?.trim() || !code)
       return NextResponse.json({ error: "Faltan campos" }, { status: 400 });
     if (!acceptedTerms)
       return NextResponse.json({ error: "Tenés que aceptar los Términos y Condiciones" }, { status: 400 });
@@ -40,9 +40,10 @@ export async function POST(req: NextRequest) {
     const hash = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
       data: {
-        name: name.trim(), fullName: fullName.trim(), email, password: hash, credits: 5,
+        name: name.trim(), fullName: fullName.trim(), email, password: hash, phone: phone.trim(), credits: 5,
         emailVerified: true, termsAcceptedAt: new Date(),
-        address: address?.trim() ?? "", latitude, longitude,
+        address: address?.trim() ?? "", crossStreets: crossStreets?.trim() ?? "", postalCode: postalCode?.trim() ?? "",
+        latitude, longitude,
       },
       select: { id: true, name: true, email: true, credits: true, balance: true, isPremium: true, avatar: true },
     });

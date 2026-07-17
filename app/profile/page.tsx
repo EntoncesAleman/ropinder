@@ -28,6 +28,8 @@ export default function ProfilePage() {
   const [locationMsg, setLocationMsg] = useState("");
   const [editingAddress, setEditingAddress] = useState(false);
   const [addressDraft, setAddressDraft] = useState("");
+  const [crossStreetsDraft, setCrossStreetsDraft] = useState("");
+  const [postalCodeDraft, setPostalCodeDraft] = useState("");
   const [addressCoords, setAddressCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [savingAddress, setSavingAddress] = useState(false);
 
@@ -77,7 +79,10 @@ export default function ProfilePage() {
     setSavingAddress(true);
     const res = await fetch("/api/profile", {
       method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ address: addressDraft, latitude: addressCoords.latitude, longitude: addressCoords.longitude }),
+      body: JSON.stringify({
+        address: addressDraft, crossStreets: crossStreetsDraft, postalCode: postalCodeDraft,
+        latitude: addressCoords.latitude, longitude: addressCoords.longitude,
+      }),
     });
     if (res.ok) { await refresh(); setEditingAddress(false); }
     setSavingAddress(false);
@@ -128,10 +133,12 @@ export default function ProfilePage() {
   const isAdmin = user.role === "ADMIN";
 
   return (
-    <div className="max-w-sm mx-auto px-4 pt-8 pb-6">
-      <div className="flex flex-col items-center text-center mb-6">
+    <div className="max-w-sm mx-auto pb-6">
+      <div className={`h-28 w-full ${isAdmin ? "bg-gradient-to-br from-slate-700 to-slate-900" : "bg-gradient-to-br from-rose-400 via-pink-400 to-amber-300"}`} />
+
+      <div className="flex flex-col items-center text-center px-4 -mt-12 mb-6">
         <label className="relative cursor-pointer group mb-3">
-          <Image src={user.avatar} alt={user.name} width={88} height={88} className="rounded-full object-cover border-4 border-white shadow-md ring-1 ring-slate-100" />
+          <Image src={user.avatar} alt={user.name} width={96} height={96} className="rounded-full object-cover border-4 border-white shadow-lg" />
           <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
             <Pencil size={18} className="text-white" />
           </div>
@@ -176,6 +183,7 @@ export default function ProfilePage() {
         )}
       </div>
 
+      <div className="px-4">
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 mb-4 flex flex-col gap-2.5">
         <div className="flex items-center gap-2.5 text-sm text-slate-600">
           <Mail size={15} className="text-slate-400 shrink-0" /> {user.email}
@@ -186,8 +194,18 @@ export default function ProfilePage() {
           </div>
         )}
         {!isAdmin && user.address && (
-          <div className="flex items-center gap-2.5 text-sm text-slate-600">
-            <MapPin size={15} className="text-slate-400 shrink-0" /> {user.address}
+          <div className="flex items-start gap-2.5 text-sm text-slate-600">
+            <MapPin size={15} className="text-slate-400 shrink-0 mt-0.5" />
+            <div>
+              <p>{user.address}</p>
+              {(user.crossStreets || user.postalCode) && (
+                <p className="text-xs text-slate-400">
+                  {user.crossStreets && <>entre {user.crossStreets}</>}
+                  {user.crossStreets && user.postalCode && " · "}
+                  {user.postalCode && <>CP {user.postalCode}</>}
+                </p>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -232,14 +250,25 @@ export default function ProfilePage() {
         {!isAdmin && (
           <>
             {!editingAddress ? (
-              <button onClick={() => { setAddressDraft(user.address ?? ""); setAddressCoords(null); setEditingAddress(true); }}
-                className="flex items-center gap-2 text-sm text-slate-600 hover:text-rose-500 mb-3">
+              <button onClick={() => {
+                setAddressDraft(user.address ?? ""); setCrossStreetsDraft(user.crossStreets ?? ""); setPostalCodeDraft(user.postalCode ?? "");
+                setAddressCoords(null); setEditingAddress(true);
+              }} className="flex items-center gap-2 text-sm text-slate-600 hover:text-rose-500 mb-3">
                 <MapPin size={15} /> {user.address ? "Cambiar domicilio" : "Cargar domicilio"}
               </button>
             ) : (
               <div className="bg-slate-50 rounded-2xl p-4 mb-3 flex flex-col gap-2">
                 <AddressAutocomplete value={addressDraft} onChange={(v) => { setAddressDraft(v); setAddressCoords(null); }}
                   onSelect={(s) => setAddressCoords({ latitude: s.latitude, longitude: s.longitude })} />
+                {addressDraft.length >= 3 && !addressCoords && (
+                  <p className="text-[11px] text-amber-600">Elegí una dirección de la lista para confirmarla.</p>
+                )}
+                <div className="flex gap-2">
+                  <input value={crossStreetsDraft} onChange={(e) => setCrossStreetsDraft(e.target.value)} placeholder="Entre calles"
+                    className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300" />
+                  <input value={postalCodeDraft} onChange={(e) => setPostalCodeDraft(e.target.value)} placeholder="CP"
+                    className="w-20 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300" />
+                </div>
                 <div className="flex gap-2">
                   <button onClick={handleSaveAddress} disabled={savingAddress || !addressCoords}
                     className="text-xs bg-rose-500 text-white font-semibold px-3 py-1.5 rounded-full disabled:opacity-50">
@@ -277,6 +306,7 @@ export default function ProfilePage() {
         <button onClick={handleLogout} className="flex items-center gap-2 text-sm text-slate-400 hover:text-rose-500">
           <LogOut size={15} /> Cerrar sesión
         </button>
+      </div>
       </div>
     </div>
   );

@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Shirt, Gift, Mail, MapPin, LocateFixed } from "lucide-react";
+import { Shirt, Gift, Mail, MapPin } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AddressAutocomplete } from "@/components/AddressAutocomplete";
 import { GoogleSignInButton } from "@/components/GoogleSignInButton";
@@ -11,8 +11,10 @@ import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 export default function SignupPage() {
   const router = useRouter();
   const { refresh } = useAuth();
-  const [form, setForm] = useState({ name: "", fullName: "", email: "", password: "" });
+  const [form, setForm] = useState({ name: "", fullName: "", email: "", password: "", phone: "" });
   const [address, setAddress] = useState("");
+  const [crossStreets, setCrossStreets] = useState("");
+  const [postalCode, setPostalCode] = useState("");
   const [code, setCode] = useState("");
   const [step, setStep] = useState<"form" | "code">("form");
   const [devCode, setDevCode] = useState<string | null>(null);
@@ -21,34 +23,12 @@ export default function SignupPage() {
   const [formRenderedAt] = useState(() => Date.now());
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [locating, setLocating] = useState(false);
-  const [locationError, setLocationError] = useState("");
-
-  function handleUseGps() {
-    if (!navigator.geolocation) { setLocationError("Tu navegador no soporta geolocalización — no podés registrarte sin ubicación."); return; }
-    setLocating(true);
-    setLocationError("");
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const latitude = pos.coords.latitude;
-        const longitude = pos.coords.longitude;
-        setCoords({ latitude, longitude });
-        try {
-          const res = await fetch(`/api/geocode?lat=${latitude}&lng=${longitude}`);
-          const data = await res.json();
-          if (data?.label) setAddress(data.label);
-        } catch { /* address label is cosmetic; coords already captured */ }
-        setLocating(false);
-      },
-      () => { setLocationError("Necesitamos tu ubicación para continuar. Habilitá el permiso de ubicación en tu navegador e intentá de nuevo."); setLocating(false); },
-      { timeout: 10000 }
-    );
-  }
 
   async function handleRequestCode(e: React.FormEvent) {
     e.preventDefault();
     if (!acceptedTerms) { setError("Tenés que aceptar los Términos y Condiciones"); return; }
-    if (!coords) { setError("Activá tu ubicación (GPS) para continuar"); return; }
+    if (!coords) { setError("Elegí tu domicilio de la lista de sugerencias"); return; }
+    if (!form.phone.trim()) { setError("Falta tu celular"); return; }
     setLoading(true); setError("");
     const res = await fetch("/api/auth/signup/request-code", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -66,7 +46,7 @@ export default function SignupPage() {
     setLoading(true); setError("");
     const res = await fetch("/api/auth/signup/verify", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, code, acceptedTerms, address, ...coords }),
+      body: JSON.stringify({ ...form, code, acceptedTerms, address, crossStreets, postalCode, ...coords }),
     });
     const data = await res.json().catch(() => ({ error: "Error de conexión con el servidor" }));
     if (!res.ok) { setError(data.error); setLoading(false); return; }
@@ -75,7 +55,7 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-rose-50 to-pink-100 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-rose-50 to-pink-100 px-4 py-8">
       <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm bg-white rounded-3xl shadow-xl p-8">
         <div className="flex flex-col items-center gap-2 mb-6">
           <div className="w-14 h-14 rounded-2xl bg-rose-500 flex items-center justify-center">
@@ -106,32 +86,30 @@ export default function SignupPage() {
               className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300" required />
             <input type="email" placeholder="Email" value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
               className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300" required />
+            <input type="tel" placeholder="Celular" value={form.phone} onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
+              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300" required />
             <input type="password" placeholder="Contraseña (mín. 6 caracteres)" value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
               className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300" required minLength={6} />
 
-            <div className="flex flex-col gap-1.5">
-              {!coords ? (
-                <button type="button" onClick={handleUseGps} disabled={locating}
-                  className="w-full flex items-center justify-center gap-2 bg-rose-50 text-rose-600 border border-rose-200 font-semibold py-3 rounded-xl hover:bg-rose-100 transition disabled:opacity-60">
-                  <LocateFixed size={16} /> {locating ? "Detectando ubicación..." : "Usar mi ubicación actual (GPS)"}
-                </button>
-              ) : (
-                <div className="flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl px-4 py-2.5 text-xs">
-                  <MapPin size={14} className="shrink-0" /> Ubicación detectada ✓ {address && <span className="truncate">— {address}</span>}
-                </div>
-              )}
-              <p className="text-[11px] text-slate-400">Necesaria para mostrarte prendas cerca tuyo, como en Tinder. No es opcional.</p>
-              {locationError && <p className="text-[11px] text-rose-500">{locationError}</p>}
-            </div>
-
-            {coords && (
-              <AddressAutocomplete
-                value={address}
-                onChange={(v) => setAddress(v)}
-                onSelect={(s) => setCoords({ latitude: s.latitude, longitude: s.longitude })}
-                placeholder="Ajustá tu domicilio exacto (opcional)"
-              />
+            <AddressAutocomplete
+              value={address}
+              onChange={(v) => { setAddress(v); setCoords(null); }}
+              onSelect={(s) => setCoords({ latitude: s.latitude, longitude: s.longitude })}
+              placeholder="Domicilio (calle y altura)"
+            />
+            {address.length >= 3 && !coords && (
+              <p className="text-[11px] text-amber-600 -mt-2 flex items-center gap-1"><MapPin size={11} /> Elegí una dirección de la lista para confirmarla.</p>
             )}
+            {coords && (
+              <p className="text-[11px] text-emerald-600 -mt-2 flex items-center gap-1"><MapPin size={11} /> Domicilio confirmado ✓</p>
+            )}
+
+            <div className="flex gap-2">
+              <input type="text" placeholder="Entre calles" value={crossStreets} onChange={(e) => setCrossStreets(e.target.value)}
+                className="flex-1 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300" />
+              <input type="text" placeholder="Código postal" value={postalCode} onChange={(e) => setPostalCode(e.target.value)}
+                className="w-32 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300" />
+            </div>
 
             {/* Honeypot — hidden from real users, bots that auto-fill every field will trip it */}
             <input type="text" name="website" tabIndex={-1} autoComplete="off" style={{ position: "absolute", left: "-9999px", opacity: 0 }} aria-hidden="true" />

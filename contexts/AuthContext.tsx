@@ -2,7 +2,8 @@
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
 
 export interface AuthUser {
-  id: string; name: string; fullName: string; email: string; avatar: string; bio: string; phone: string; address: string;
+  id: string; name: string; fullName: string; email: string; avatar: string; bio: string; phone: string; phoneVerified: boolean;
+  address: string; crossStreets: string; postalCode: string;
   isPremium: boolean; premiumUntil: string | null; premiumPlan: string | null; credits: number; balance: number; latitude: number; longitude: number;
   role: string; bannedAt: string | null; ratingAvg: number; ratingCount: number;
   verified: boolean; emailVerified: boolean;

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Zap, DollarSign, Crown, LogOut, Rocket, Plus, Shirt, Star, Pencil, BadgeCheck, Store, Lock, FileText, MapPin, Receipt, LifeBuoy, Megaphone } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { AddressAutocomplete } from "@/components/AddressAutocomplete";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -38,6 +39,10 @@ export default function ProfilePage() {
   const [savingPassword, setSavingPassword] = useState(false);
   const [updatingLocation, setUpdatingLocation] = useState(false);
   const [locationMsg, setLocationMsg] = useState("");
+  const [editingAddress, setEditingAddress] = useState(false);
+  const [addressDraft, setAddressDraft] = useState("");
+  const [addressCoords, setAddressCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [savingAddress, setSavingAddress] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) router.push("/login");
@@ -124,6 +129,17 @@ export default function ProfilePage() {
       () => { setLocationMsg("No pudimos acceder a tu ubicación"); setUpdatingLocation(false); },
       { timeout: 8000 }
     );
+  }
+
+  async function handleSaveAddress() {
+    if (!addressCoords) return;
+    setSavingAddress(true);
+    const res = await fetch("/api/profile", {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ address: addressDraft, latitude: addressCoords.latitude, longitude: addressCoords.longitude }),
+    });
+    if (res.ok) { await refresh(); setEditingAddress(false); }
+    setSavingAddress(false);
   }
 
   async function handleChangePassword() {
@@ -369,8 +385,27 @@ export default function ProfilePage() {
           </div>
         )}
 
+        {!editingAddress ? (
+          <button onClick={() => { setAddressDraft(user.address ?? ""); setAddressCoords(null); setEditingAddress(true); }}
+            className="flex items-center gap-2 text-sm text-slate-600 hover:text-rose-500 mb-3">
+            <MapPin size={15} /> {user.address ? "Cambiar domicilio" : "Cargar domicilio"}
+          </button>
+        ) : (
+          <div className="bg-slate-50 rounded-2xl p-4 mb-3 flex flex-col gap-2">
+            <AddressAutocomplete value={addressDraft} onChange={(v) => { setAddressDraft(v); setAddressCoords(null); }}
+              onSelect={(s) => setAddressCoords({ latitude: s.latitude, longitude: s.longitude })} />
+            <div className="flex gap-2">
+              <button onClick={handleSaveAddress} disabled={savingAddress || !addressCoords}
+                className="text-xs bg-rose-500 text-white font-semibold px-3 py-1.5 rounded-full disabled:opacity-50">
+                {savingAddress ? "..." : "Guardar"}
+              </button>
+              <button onClick={() => setEditingAddress(false)} className="text-xs text-slate-400 px-3 py-1.5">Cancelar</button>
+            </div>
+          </div>
+        )}
+
         <button onClick={handleUpdateLocation} disabled={updatingLocation} className="flex items-center gap-2 text-sm text-slate-600 hover:text-rose-500 mb-3 disabled:opacity-50">
-          <MapPin size={15} /> {updatingLocation ? "Detectando ubicación..." : "Actualizar mi ubicación"}
+          <MapPin size={15} /> {updatingLocation ? "Detectando ubicación..." : "Usar mi ubicación actual (GPS)"}
         </button>
         {locationMsg && <p className="text-xs text-slate-400 mb-3 -mt-2">{locationMsg}</p>}
 

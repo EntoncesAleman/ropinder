@@ -14,6 +14,8 @@ const TYPE_LABEL: Record<string, string> = {
   CREDIT_PURCHASE: "Compra de créditos/Premium",
   WITHDRAWAL: "Retiro",
   VERIFICATION: "Verificación de cuenta",
+  MANUAL_CREDIT_GRANT: "Créditos acreditados por soporte",
+  PREMIUM_BUMP: "Prenda destacada (bump)",
 };
 
 export default function HistoryPage() {

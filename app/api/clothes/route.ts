@@ -3,6 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { haversineKm } from "@/lib/haversine";
 import { getSession } from "@/lib/auth";
 
+// Matches the largest option on the client's DistanceSlider — ads still
+// respect radius, just always at the widest one available.
+const MAX_RADIUS_KM = 50;
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const lat = parseFloat(searchParams.get("lat") ?? "0");
@@ -27,8 +31,8 @@ export async function GET(request: NextRequest) {
 
   const withDistance = items.map((item) => ({ ...item, distance: haversineKm(lat, lng, item.latitude, item.longitude) }));
 
-  // Sponsored (annual Premium) items ignore the radius filter and always lead the feed.
-  const ads = withDistance.filter((item) => item.isAd);
+  // Sponsored (annual Premium) items still respect radius, but always at the widest setting.
+  const ads = withDistance.filter((item) => item.isAd && item.distance <= MAX_RADIUS_KM);
   const nearby = withDistance
     .filter((item) => !item.isAd && item.distance <= radius)
     .sort((a, b) => (b.isBumped ? 1 : 0) - (a.isBumped ? 1 : 0) || a.distance - b.distance);

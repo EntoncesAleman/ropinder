@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   ShieldAlert, Ban, Undo2, Check, X, UserCog, KeyRound, Download,
-  Users, Receipt, BarChart3, Flag,
+  Users, Receipt, BarChart3, Flag, Zap,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -71,6 +71,11 @@ export default function AdminPage() {
   const [resetPassword, setResetPassword] = useState("");
   const [resetMsg, setResetMsg] = useState("");
   const [resetBusy, setResetBusy] = useState(false);
+  const [grantEmail, setGrantEmail] = useState("");
+  const [grantCredits, setGrantCredits] = useState("");
+  const [grantNote, setGrantNote] = useState("");
+  const [grantMsg, setGrantMsg] = useState("");
+  const [grantBusy, setGrantBusy] = useState(false);
 
   useEffect(() => {
     if (loading) return;
@@ -153,6 +158,19 @@ export default function AdminPage() {
     setResetBusy(false);
   }
 
+  async function handleGrantCredits() {
+    setGrantBusy(true);
+    setGrantMsg("");
+    const res = await fetch("/api/admin/grant-credits", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: grantEmail.trim(), credits: Number(grantCredits), note: grantNote }),
+    });
+    const data = await res.json();
+    setGrantMsg(res.ok ? `${grantCredits}✦ acreditados a ${data.user.email} (ahora tiene ${data.user.credits}✦)` : data.error);
+    if (res.ok) { setGrantEmail(""); setGrantCredits(""); setGrantNote(""); await fetchTxs(); }
+    setGrantBusy(false);
+  }
+
   async function toggleBan(userId: string, banned: boolean) {
     setBusyId(userId);
     const res = await fetch(`/api/admin/users/${userId}/ban`, {
@@ -233,6 +251,26 @@ export default function AdminPage() {
               </div>
             </div>
             {resetMsg && <p className="text-[11px] text-slate-500 mt-1.5">{resetMsg}</p>}
+          </div>
+
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-6">
+            <p className="text-xs font-bold text-slate-600 flex items-center gap-1.5 mb-2"><Zap size={13} /> Acreditar créditos manualmente</p>
+            <p className="text-[11px] text-slate-400 mb-2">Usalo cuando confirmes en MercadoPago que llegó una transferencia y todavía no está automatizado el alta de créditos.</p>
+            <div className="flex flex-col gap-2">
+              <input value={grantEmail} onChange={(e) => setGrantEmail(e.target.value)} placeholder="email@ejemplo.com"
+                className="border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-rose-300" />
+              <div className="flex gap-2">
+                <input value={grantCredits} onChange={(e) => setGrantCredits(e.target.value)} placeholder="Créditos (ej: 30)" type="number"
+                  className="w-28 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-rose-300" />
+                <input value={grantNote} onChange={(e) => setGrantNote(e.target.value)} placeholder="Nota (opcional, ej: transferencia MP #123)"
+                  className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-rose-300" />
+              </div>
+              <button onClick={handleGrantCredits} disabled={grantBusy || !grantEmail.trim() || !grantCredits}
+                className="text-xs bg-slate-700 text-white font-semibold px-2.5 py-1.5 rounded-lg disabled:opacity-50 self-start">
+                {grantBusy ? "..." : "Acreditar"}
+              </button>
+            </div>
+            {grantMsg && <p className="text-[11px] text-slate-500 mt-1.5">{grantMsg}</p>}
           </div>
 
           <div className="flex items-center justify-between mb-3">

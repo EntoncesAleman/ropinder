@@ -43,6 +43,17 @@ Cada una de las tres últimas pestañas tiene un botón "CSV" arriba a la
 derecha para descargar esos datos como planilla (Excel/Google Sheets
 los abre directo).
 
+ACREDITAR CRÉDITOS A MANO (pestaña Reportes)
+--------------------------------------------------
+Cuando confirmes en MercadoPago que llegó una transferencia de un
+usuario (mientras el cobro automático todavía no está conectado), desde
+"Acreditar créditos manualmente" ponés su email, cuántos créditos
+corresponden, y una nota opcional (por ejemplo el número de operación de
+MercadoPago). Queda registrado como una transacción tipo
+MANUAL_CREDIT_GRANT, visible y exportable desde la pestaña
+Transacciones — con quién lo acreditó y la nota, para tener el rastro
+completo de qué se cargó a mano.
+
 CÓMO FUNCIONA LA PLATA (custodia / escrow)
 --------------------------------------------
 1. El comprador paga dentro del chat del match ("Pagar") — la plata NO va
@@ -72,11 +83,28 @@ ESPACIO PUBLICITARIO (solo Premium anual)
 ----------------------------------------------
 Un vendedor con el plan Premium ANUAL puede marcar una de sus prendas
 como "Publicidad" desde su perfil (Mis prendas → "Poner en publicidad").
-Esa prenda aparece pinneada al principio del feed de TODOS los usuarios,
-sin importar la distancia/radio configurado, con una etiqueta violeta de
-"Publicidad" bien visible. Es la única forma de acceder a ese espacio
-por ahora — no hay una venta de espacio publicitario aparte para marcas
-que no sean usuarias con Premium anual.
+Esa prenda aparece pinneada al principio del feed de otros usuarios, con
+una etiqueta violeta de "Publicidad" bien visible. Sí respeta la
+distancia — pero siempre usa el radio más grande disponible (50km) en
+vez del radio que tenga configurado quien está mirando el feed, así que
+tiene mucho más alcance que una prenda normal sin ser 100% global. Es la
+única forma de acceder a ese espacio por ahora — no hay venta de espacio
+publicitario aparte para marcas que no sean usuarias con Premium anual.
+
+DOMICILIO CON AUTOCOMPLETADO
+---------------------------------
+El registro ahora pide domicilio (no solo geolocalización por GPS). Usa
+autocompletado con OpenStreetMap Nominatim — gratis, sin necesitar una
+API key. El usuario escribe, aparecen sugerencias, y al elegir una se
+guarda tanto el texto de la dirección como las coordenadas exactas. Es
+obligatorio elegir una sugerencia de la lista (no alcanza con escribir
+texto libre) para asegurar que las coordenadas sean reales. También se
+puede cambiar el domicilio después desde /profile.
+
+Google Maps/Places daría una experiencia más pulida (mejor autocompletado,
+resultados más precisos), pero necesita una API key de Google Cloud con
+facturación habilitada (no es gratis pasado cierto uso). Si en algún
+momento la conseguís, avisame y migramos de Nominatim a Google Places.
 
 CUENTA DE USUARIO
 --------------------
@@ -148,22 +176,25 @@ simulado (no mueve plata real). Para cobrar de verdad hace falta:
 3. Pasarme esas credenciales (como variables de entorno, nunca en el
    código) para conectar el checkout real.
 
-MAIL REAL (VERIFICACIÓN Y SOPORTE) — CASI LISTO
-------------------------------------------------
+MAIL REAL (VERIFICACIÓN Y SOPORTE) — LISTO EN LOCAL, FALTA EN VERCEL
+--------------------------------------------------------------------------
 El envío de mail soporta dos proveedores, en este orden de prioridad:
 1. Resend (RESEND_API_KEY) — si está configurado, se usa este.
 2. Gmail SMTP (GMAIL_USER + GMAIL_APP_PASSWORD) — se usa si no hay Resend.
+   Ya está configurado y PROBADO con tomas.aleman@gmail.com — mandé un
+   mail de prueba real a Soporte.Ropinder@gmail.com y llegó.
 3. Si ninguno está configurado: modo prueba (el código se muestra en
    pantalla en vez de mandarse, y las consultas de soporte se loguean
    en el servidor en vez de enviarse).
 
-Para activar Gmail SMTP hace falta agregar estas dos variables de
-entorno en Vercel (Project Settings → Environment Variables):
-  GMAIL_USER = la dirección de Gmail que envía los mails
-  GMAIL_APP_PASSWORD = la contraseña de aplicación de 16 caracteres
-Los mails de soporte que manda un usuario van a SOPORTE_EMAIL (o por
-default a Soporte.Ropinder@gmail.com — se puede pisar con la variable
-de entorno SUPPORT_EMAIL).
+Ya quedó en tu .env local, pero PRODUCCIÓN (Vercel) todavía no lo tiene
+— hasta que lo agregues ahí, ropinder.vercel.app sigue en modo prueba.
+Andá a Project Settings → Environment Variables en Vercel y agregá:
+  GMAIL_USER = tomas.aleman@gmail.com
+  GMAIL_APP_PASSWORD = (la contraseña de aplicación de 16 caracteres
+  que generaste — la misma que me pasaste)
+Los mails de soporte que manda un usuario van a Soporte.Ropinder@gmail.com
+por default (se puede pisar con la variable de entorno SUPPORT_EMAIL).
 
 CHAT DE SOPORTE (/support)
 -------------------------------

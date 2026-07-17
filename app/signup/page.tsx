@@ -1,15 +1,17 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Shirt, Gift, Mail, MapPin } from "lucide-react";
+import { Shirt, Gift, Mail } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { AddressAutocomplete } from "@/components/AddressAutocomplete";
 
 export default function SignupPage() {
   const router = useRouter();
   const { refresh } = useAuth();
   const [form, setForm] = useState({ name: "", fullName: "", email: "", password: "" });
+  const [address, setAddress] = useState("");
   const [code, setCode] = useState("");
   const [step, setStep] = useState<"form" | "code">("form");
   const [devCode, setDevCode] = useState<string | null>(null);
@@ -18,20 +20,11 @@ export default function SignupPage() {
   const [formRenderedAt] = useState(() => Date.now());
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [locationStatus, setLocationStatus] = useState<"pending" | "granted" | "denied">("pending");
-
-  useEffect(() => {
-    if (!navigator.geolocation) { setLocationStatus("denied"); return; }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => { setCoords({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }); setLocationStatus("granted"); },
-      () => setLocationStatus("denied"),
-      { timeout: 8000 }
-    );
-  }, []);
 
   async function handleRequestCode(e: React.FormEvent) {
     e.preventDefault();
     if (!acceptedTerms) { setError("Tenés que aceptar los Términos y Condiciones"); return; }
+    if (!coords) { setError("Elegí tu domicilio de la lista de sugerencias"); return; }
     setLoading(true); setError("");
     const res = await fetch("/api/auth/signup/request-code", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -49,7 +42,7 @@ export default function SignupPage() {
     setLoading(true); setError("");
     const res = await fetch("/api/auth/signup/verify", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, code, acceptedTerms, ...coords }),
+      body: JSON.stringify({ ...form, code, acceptedTerms, address, ...coords }),
     });
     const data = await res.json().catch(() => ({ error: "Error de conexión con el servidor" }));
     if (!res.ok) { setError(data.error); setLoading(false); return; }
@@ -81,12 +74,15 @@ export default function SignupPage() {
             <input type="password" placeholder="Contraseña (mín. 6 caracteres)" value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
               className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300" required minLength={6} />
 
-            <div className="flex items-center gap-2 text-xs text-slate-400">
-              <MapPin size={13} className={locationStatus === "granted" ? "text-emerald-500" : "text-slate-300"} />
-              {locationStatus === "pending" && "Detectando tu ubicación para mostrarte prendas cerca tuyo..."}
-              {locationStatus === "granted" && "Ubicación detectada — vas a ver prendas cerca tuyo."}
-              {locationStatus === "denied" && "No pudimos acceder a tu ubicación. Podés activarla después desde tu perfil."}
-            </div>
+            <AddressAutocomplete
+              value={address}
+              onChange={(v) => { setAddress(v); setCoords(null); }}
+              onSelect={(s) => setCoords({ latitude: s.latitude, longitude: s.longitude })}
+              placeholder="Domicilio (para mostrarte prendas cerca tuyo)"
+            />
+            {address.length >= 3 && !coords && (
+              <p className="text-[11px] text-amber-600 -mt-2">Elegí una dirección de la lista para confirmarla.</p>
+            )}
 
             {/* Honeypot — hidden from real users, bots that auto-fill every field will trip it */}
             <input type="text" name="website" tabIndex={-1} autoComplete="off" style={{ position: "absolute", left: "-9999px", opacity: 0 }} aria-hidden="true" />

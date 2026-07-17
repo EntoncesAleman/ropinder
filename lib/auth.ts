@@ -32,7 +32,7 @@ export async function getSession() {
   if (!userId) return null;
 
   const select = {
-    id: true, name: true, fullName: true, email: true, avatar: true, bio: true, phone: true,
+    id: true, name: true, fullName: true, email: true, avatar: true, bio: true, phone: true, address: true,
     isPremium: true, premiumUntil: true, premiumPlan: true, credits: true, balance: true, latitude: true, longitude: true,
     role: true, bannedAt: true, ratingAvg: true, ratingCount: true,
     verified: true, emailVerified: true,

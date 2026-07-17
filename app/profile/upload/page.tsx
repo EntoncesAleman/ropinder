@@ -21,6 +21,7 @@ export default function UploadPage() {
   const [dragging, setDragging] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleFile = useCallback((file: File) => {
@@ -41,11 +42,17 @@ export default function UploadPage() {
     e.preventDefault();
     if (!imageFile || !user) return;
     setLoading(true);
+    setError("");
 
     const fd = new FormData();
     fd.append("file", imageFile);
     const uploadRes = await fetch("/api/upload", { method: "POST", body: fd });
-    const { url } = await uploadRes.json();
+    const uploadData = await uploadRes.json().catch(() => ({ error: "Error de conexión al subir la imagen" }));
+    if (!uploadRes.ok) {
+      setError(uploadData.error ?? "No se pudo subir la imagen");
+      setLoading(false);
+      return;
+    }
 
     const brand = form.brand === "Otra" ? customBrand.trim() : form.brand;
     const size = form.size === "Otro" ? customSize.trim() : form.size;
@@ -53,13 +60,16 @@ export default function UploadPage() {
     const res = await fetch("/api/clothes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, brand, size, imageUrl: url }),
+      body: JSON.stringify({ ...form, brand, size, imageUrl: uploadData.url }),
     });
 
     if (res.ok) {
       await refresh();
       setSuccess(true);
       setTimeout(() => router.push("/ropero"), 2000);
+    } else {
+      const data = await res.json().catch(() => ({ error: "Error de conexión" }));
+      setError(data.error ?? "No se pudo publicar la prenda");
     }
     setLoading(false);
   }
@@ -156,6 +166,8 @@ export default function UploadPage() {
             onChange={(e) => setForm((p) => ({ ...p, price: e.target.value }))}
             className="w-full border border-slate-200 rounded-xl pl-7 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300" min="0" step="0.01" />
         </div>
+
+        {error && <p className="text-rose-500 text-sm text-center">{error}</p>}
 
         <motion.button whileTap={{ scale: 0.97 }} type="submit" disabled={loading || !imageFile}
           className="w-full bg-rose-500 text-white font-semibold py-3.5 rounded-xl hover:bg-rose-600 transition flex items-center justify-center gap-2 disabled:opacity-50">

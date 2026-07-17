@@ -101,9 +101,10 @@ export default function ProfilePage() {
     const fd = new FormData();
     fd.append("file", file);
     const uploadRes = await fetch("/api/upload", { method: "POST", body: fd });
-    const { url } = await uploadRes.json();
+    const uploadData = await uploadRes.json().catch(() => ({ error: "Error de conexión al subir la imagen" }));
+    if (!uploadRes.ok) { alert(uploadData.error ?? "No se pudo subir la imagen"); return; }
     const res = await fetch("/api/profile", {
-      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ avatar: url }),
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ avatar: uploadData.url }),
     });
     if (res.ok) await refresh();
   }

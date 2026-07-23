@@ -4,6 +4,51 @@ import { getSession } from "@/lib/auth";
 
 const BUMP_COST = 3;
 
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
+
+  const item = await prisma.clothingItem.findUnique({ where: { id } });
+  if (!item || item.userId !== session.id) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
+
+  return NextResponse.json(item);
+}
+
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
+
+  try {
+    const item = await prisma.clothingItem.findUnique({ where: { id } });
+    if (!item || item.userId !== session.id) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
+
+    const body = await req.json();
+    const { title, description, size, brand, condition, category, imageUrl, price } = body;
+    if (!title || !size || !brand || !condition)
+      return NextResponse.json({ error: "Faltan campos obligatorios" }, { status: 400 });
+
+    const updated = await prisma.clothingItem.update({
+      where: { id },
+      data: {
+        title,
+        description: description ?? "",
+        size,
+        brand,
+        condition,
+        category: category ?? item.category,
+        imageUrl: imageUrl || item.imageUrl,
+        price: price ? parseFloat(price) : null,
+      },
+    });
+    return NextResponse.json({ item: updated });
+  } catch (err) {
+    console.error("Update clothing item error:", err);
+    return NextResponse.json({ error: "Error actualizando la prenda" }, { status: 500 });
+  }
+}
+
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { action } = await req.json();

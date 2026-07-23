@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Zap, DollarSign, Crown, Rocket, Plus, Shirt, BadgeCheck, Store, Megaphone } from "lucide-react";
+import { Zap, DollarSign, Crown, Rocket, Plus, Shirt, BadgeCheck, Store, Megaphone, Pencil } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import Link from "next/link";
 import Image from "next/image";
@@ -175,24 +175,29 @@ export default function RoperoPage() {
         <div className="flex flex-col gap-3">
           {items.map((item) => (
             <motion.div key={item.id} layout className="flex items-center gap-3 bg-white rounded-2xl p-3 shadow-sm border border-slate-100">
-              <Image src={item.imageUrl} alt={item.title} width={56} height={56} className="rounded-xl object-cover" />
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-slate-800 text-sm truncate">{item.title}</p>
-                <p className="text-xs text-slate-400">{item.brand} · Talle {item.size}</p>
-                <div className="flex gap-1 mt-1">
-                  {item.isBumped && (
-                    <span className="inline-flex items-center gap-1 text-xs bg-amber-100 text-amber-700 rounded-full px-2 py-0.5">
-                      <Rocket size={10} /> Destacada
-                    </span>
-                  )}
-                  {item.isAd && (
-                    <span className="inline-flex items-center gap-1 text-xs bg-violet-100 text-violet-700 rounded-full px-2 py-0.5">
-                      <Megaphone size={10} /> Publicidad
-                    </span>
-                  )}
+              <Link href={`/ropero/${item.id}/edit`} className="flex items-center gap-3 flex-1 min-w-0">
+                <Image src={item.imageUrl} alt={item.title} width={56} height={56} className="rounded-xl object-cover" />
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-slate-800 text-sm truncate">{item.title}</p>
+                  <p className="text-xs text-slate-400">{item.brand} · Talle {item.size}</p>
+                  <div className="flex gap-1 mt-1">
+                    {item.isBumped && (
+                      <span className="inline-flex items-center gap-1 text-xs bg-amber-100 text-amber-700 rounded-full px-2 py-0.5">
+                        <Rocket size={10} /> Destacada
+                      </span>
+                    )}
+                    {item.isAd && (
+                      <span className="inline-flex items-center gap-1 text-xs bg-violet-100 text-violet-700 rounded-full px-2 py-0.5">
+                        <Megaphone size={10} /> Publicidad
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
+              </Link>
               <div className="flex flex-col items-end gap-1">
+                <Link href={`/ropero/${item.id}/edit`} className="flex items-center gap-1 text-xs text-slate-400 hover:text-rose-500 transition">
+                  <Pencil size={10} /> Editar
+                </Link>
                 {item.price && <p className="text-xs font-bold text-emerald-600">${item.price}</p>}
                 {!item.isBumped && (
                   <button onClick={() => handleBump(item.id)} disabled={bumping === item.id}

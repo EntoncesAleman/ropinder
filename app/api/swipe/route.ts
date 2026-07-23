@@ -1,19 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { notify } from "@/lib/notify";
+import { getSession } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
-  const body = await request.json();
-  const { userId, clothingItemId, type } = body as { userId: string; clothingItemId: string; type: "LIKE" | "DISLIKE" };
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
+  const userId = session.id;
 
-  if (!userId || !clothingItemId || !type)
+  const body = await request.json();
+  const { clothingItemId, type } = body as { clothingItemId: string; type: "LIKE" | "DISLIKE" };
+
+  if (!clothingItemId || !type)
     return NextResponse.json({ error: "Missing fields" }, { status: 400 });
 
-  if (type === "LIKE") {
-    const swiper = await prisma.user.findUnique({ where: { id: userId }, select: { credits: true, isPremium: true } });
-    if (swiper && swiper.credits <= 0 && !swiper.isPremium)
-      return NextResponse.json({ error: "Sin créditos", code: "NO_CREDITS" }, { status: 402 });
-  }
+  if (type === "LIKE" && session.credits <= 0 && !session.isPremium)
+    return NextResponse.json({ error: "Sin créditos", code: "NO_CREDITS" }, { status: 402 });
 
   await prisma.swipe.upsert({
     where: { swiperId_targetItemId: { swiperId: userId, targetItemId: clothingItemId } },

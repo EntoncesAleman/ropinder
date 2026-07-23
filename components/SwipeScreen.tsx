@@ -52,7 +52,7 @@ export function SwipeScreen() {
     const res = await fetch("/api/swipe", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: user.id, clothingItemId: itemId, type }),
+      body: JSON.stringify({ clothingItemId: itemId, type }),
     });
     const data = await res.json();
 

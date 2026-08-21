@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { closeExpiredAuction } from "@/lib/closeAuction";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
 
   const { id } = await params;
+  await closeExpiredAuction(id); // no-op unless this one is overdue — see lib/closeAuction.ts
   const auction = await prisma.auction.findUnique({
     where: { id },
     include: {

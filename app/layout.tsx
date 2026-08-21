@@ -5,6 +5,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { AppNav } from "@/components/AppNav";
 import { NotificationBell } from "@/components/NotificationBell";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
+import { MainContent } from "@/components/MainContent";
 
 const geist = Geist({ subsets: ["latin"] });
 
@@ -47,7 +48,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <ServiceWorkerRegister />
           <NotificationBell />
           <AppNav />
-          <main className="pb-20 lg:pb-0 lg:pl-56">{children}</main>
+          <MainContent>{children}</MainContent>
         </AuthProvider>
       </body>
     </html>

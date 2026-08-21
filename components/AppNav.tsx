@@ -30,7 +30,10 @@ export function AppNav() {
 
   if (!user) return null;
   const isAdmin = user.role === "ADMIN";
-  const activeTabs = isAdmin ? adminTabs : tabs;
+  // /admin has its own complete right-hand nav (see app/admin/page.tsx) — the
+  // desktop rail below would just be a second, mostly-empty nav sitting next
+  // to it. Mobile keeps the bottom bar as the only admin nav on small screens.
+  const isAdminRoute = pathname.startsWith("/admin");
   const activeMobileTabs = isAdmin ? adminTabs : mobileTabs;
 
   return (
@@ -51,24 +54,26 @@ export function AppNav() {
       </nav>
 
       {/* Desktop: left rail — a marketplace shell, not the mobile bar stretched wide. */}
-      <nav className="hidden lg:flex fixed top-0 left-0 bottom-0 z-40 w-56 flex-col bg-white border-r border-slate-100 px-3 py-6">
-        <Link href="/" className="flex items-center gap-2 px-3 mb-8">
-          <Shirt size={22} className="text-rose-500" />
-          <span className="font-extrabold text-lg tracking-tight text-slate-800">Ropi<span className="text-rose-500">nder</span></span>
-        </Link>
-        <div className="flex flex-col gap-1">
-          {activeTabs.map(({ href, icon: Icon, label }) => {
-            const active = pathname === href;
-            return (
-              <Link key={href} href={href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${active ? "bg-rose-50 text-rose-600" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
-                <Icon size={19} strokeWidth={active ? 2.5 : 1.8} />
-                {label}
-              </Link>
-            );
-          })}
-        </div>
-      </nav>
+      {!isAdminRoute && (
+        <nav className="hidden lg:flex fixed top-0 left-0 bottom-0 z-40 w-56 flex-col bg-white border-r border-slate-100 px-3 py-6">
+          <Link href="/" className="flex items-center gap-2 px-3 mb-8">
+            <Shirt size={22} className="text-rose-500" />
+            <span className="font-extrabold text-lg tracking-tight text-slate-800">Ropi<span className="text-rose-500">nder</span></span>
+          </Link>
+          <div className="flex flex-col gap-1">
+            {(isAdmin ? adminTabs : tabs).map(({ href, icon: Icon, label }) => {
+              const active = pathname === href;
+              return (
+                <Link key={href} href={href}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${active ? "bg-rose-50 text-rose-600" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}>
+                  <Icon size={19} strokeWidth={active ? 2.5 : 1.8} />
+                  {label}
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
+      )}
     </>
   );
 }

@@ -2,6 +2,19 @@
 
 Auditoría base para el loop de evolución a plataforma completa (venta + intercambio + canje + subasta, mobile-app + desktop usuario + desktop admin). Generada antes de tocar código de esta fase. Se actualiza en cada ciclo.
 
+## Estado — Ciclo 4 (cerrado)
+
+Dos cosas encontradas después de pushear el Ciclo 3, corregidas con autorización explícita:
+
+1. **Turso de producción estaba atrasada respecto al código pusheado** — corrí los 16 scripts `scripts/sync-*-schema-turso.ts` contra la base real, en orden de dependencias, con manejo seguro de columnas ya aplicadas (`ALTER TABLE ADD COLUMN` no es idempotente en SQLite). Verificado antes y después: 10 usuarios y 10 prendas intactos, ningún dato tocado, solo estructura. Ahora Turso tiene exactamente el mismo esquema que `prisma/schema.prisma` — sin esto, desplegar lo pusheado en los ciclos 1-3 rompía login (falta `LoginAttempt`), feed (falta `stylePrefs`), ofertas/intercambio (falta `Offer`) y todo lo de subastas.
+2. **Ganar una subasta no generaba ningún cobro real** — el cron de cierre marcaba ganador y archivaba la prenda pero nunca creaba una transacción. Corregido reusando el mismo escrow que ya usa Venta: el cierre crea un `ESCROW_HOLD` con la puja ganadora, el ganador confirma recepción desde `/subastas/[id]` (mismo endpoint `/api/transactions/release`, misma comisión 8%/5% premium, mismo retraso de 48hs para retiro) — cero lógica de comisión duplicada.
+
+Verificado: `tsc`/`eslint` limpios, 24/24 tests.
+
+### Pendiente real que quedó visible con esto
+
+El sistema de reputación (`Rating`) depende de `matchId` obligatorio — una subasta no genera match, así que **hoy no se puede calificar después de ganar una subasta** (sí después de una venta/intercambio vía match). Requiere que `Rating.matchId` sea opcional o agregar una referencia alternativa a `Auction`. No lo toqué en este ciclo porque es un cambio de schema más, y ya se corrió una tanda de sync contra producción — prefiero agruparlo con el próximo cambio de schema en vez de generar un script más de uno solo.
+
 ## Estado — Ciclo 1 (cerrado)
 
 Hecho: base PWA (manifest + metadata), Subasta de punta a punta (schema, API con concurrencia server-authoritative verificada, cron de cierre, UI mobile completa: publicar/descubrir/pujar/historial). Ver `ARCHITECTURE.md` §6 para lo que quedó explícitamente fuera (Desktop Usuario, Desktop Admin, Canje por crédito, service worker offline). Próximo ciclo recomendado: sistema de componentes reusable (botón/input/card) como prerequisito de Desktop Usuario — ver `DESIGN_SYSTEM.md`.

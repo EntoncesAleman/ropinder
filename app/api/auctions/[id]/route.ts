@@ -18,5 +18,13 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   });
   if (!auction) return NextResponse.json({ error: "No encontrada" }, { status: 404 });
 
-  return NextResponse.json(auction);
+  const escrowTx = await prisma.transaction.findFirst({
+    where: { type: { in: ["ESCROW_HOLD", "ESCROW_RELEASE"] }, meta: { contains: `"auctionId":"${id}"` } },
+    orderBy: { createdAt: "desc" },
+  });
+  const escrow = escrowTx
+    ? { id: escrowTx.id, amount: escrowTx.amount, type: escrowTx.type, status: escrowTx.status, meta: JSON.parse(escrowTx.meta) as { buyerId?: string; sellerId?: string } }
+    : null;
+
+  return NextResponse.json({ ...auction, escrow });
 }

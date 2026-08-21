@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { ArrowLeft, Gavel, Star, CheckCircle2, Trophy, Users } from "lucide-react";
+import { ArrowLeft, Gavel, Star, CheckCircle2, Trophy, Users, PackageCheck, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface AuctionDetail {
@@ -21,6 +21,7 @@ interface AuctionDetail {
   seller: { id: string; name: string; avatar: string; ratingAvg: number; ratingCount: number; verified: boolean };
   winner: { id: string; name: string; avatar: string } | null;
   bids: { id: string; amount: number; createdAt: string; bidder: { id: string; name: string; avatar: string } }[];
+  escrow: { id: string; amount: number; type: "ESCROW_HOLD" | "ESCROW_RELEASE"; status: string; meta: { buyerId?: string; sellerId?: string } } | null;
 }
 
 function formatRemaining(ms: number): string {
@@ -53,6 +54,7 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
   const [bidding, setBidding] = useState(false);
   const [error, setError] = useState("");
   const [notFound, setNotFound] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
   async function fetchAuction() {
     const res = await fetch(`/api/auctions/${id}`);
@@ -86,6 +88,15 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
     if (!res.ok) setError(data.error ?? "No se pudo pujar");
     else { setBidAmount(""); await fetchAuction(); }
     setBidding(false);
+  }
+
+  async function handleConfirmReceipt() {
+    setConfirming(true);
+    const res = await fetch("/api/transactions/release", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ transactionId: auction?.escrow?.id }),
+    });
+    if (res.ok) await fetchAuction();
+    setConfirming(false);
   }
 
   if (loading || (!auction && !notFound)) return <div className="min-h-screen flex items-center justify-center text-slate-400 text-sm">Cargando...</div>;
@@ -136,11 +147,33 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
 
           {isEnded ? (
             auction.winner ? (
-              <div className="flex items-center gap-2 bg-white rounded-xl px-3 py-2 mt-1">
-                <Trophy size={16} className="text-amber-500" />
-                <p className="text-xs text-slate-600">
-                  Ganó <strong>{auction.winner.id === user.id ? "vos" : auction.winner.name}</strong> con ${auction.currentPrice}
-                </p>
+              <div className="flex flex-col gap-1.5 mt-1">
+                <div className="flex items-center gap-2 bg-white rounded-xl px-3 py-2">
+                  <Trophy size={16} className="text-amber-500" />
+                  <p className="text-xs text-slate-600">
+                    Ganó <strong>{auction.winner.id === user.id ? "vos" : auction.winner.name}</strong> con ${auction.currentPrice}
+                  </p>
+                </div>
+
+                {auction.escrow?.type === "ESCROW_HOLD" && auction.escrow.meta.buyerId === user.id && (
+                  <div className="flex items-center justify-between bg-white rounded-xl px-3 py-2 gap-2">
+                    <p className="text-[11px] text-slate-600 flex items-center gap-1.5"><PackageCheck size={14} className="text-amber-500 flex-shrink-0" /> ¿Recibiste la prenda?</p>
+                    <button onClick={handleConfirmReceipt} disabled={confirming}
+                      className="text-[11px] bg-amber-500 text-white font-semibold px-2.5 py-1.5 rounded-full hover:bg-amber-600 transition disabled:opacity-60 flex-shrink-0">
+                      {confirming ? "..." : "Confirmar recepción"}
+                    </button>
+                  </div>
+                )}
+                {auction.escrow?.type === "ESCROW_HOLD" && auction.escrow.meta.sellerId === user.id && (
+                  <p className="text-[11px] text-slate-500 bg-white rounded-xl px-3 py-2 flex items-center gap-1.5">
+                    <ShieldCheck size={13} className="text-amber-500 flex-shrink-0" /> ${auction.escrow.amount} en custodia — esperando que confirmen la recepción.
+                  </p>
+                )}
+                {auction.escrow?.type === "ESCROW_RELEASE" && (
+                  <p className="text-[11px] text-emerald-600 bg-white rounded-xl px-3 py-2 flex items-center gap-1.5">
+                    <CheckCircle2 size={13} className="flex-shrink-0" /> Recepción confirmada — fondos liberados{auction.escrow.meta.sellerId === user.id ? " (disponibles para retiro en 48hs)" : ""}.
+                  </p>
+                )}
               </div>
             ) : (
               <p className="text-xs text-slate-500 bg-white rounded-xl px-3 py-2 mt-1">Terminó sin pujas.</p>

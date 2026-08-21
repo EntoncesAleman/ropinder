@@ -42,9 +42,27 @@ export async function GET(req: NextRequest) {
         where: { id: auction.itemId },
         data: { archived: true, soldAt: now },
       });
+
+      // Same escrow the rest of the app uses for a sale — the winning bid is
+      // the "payment" held in custody until the winner confirms receipt via
+      // the existing /api/transactions/release (commission calc included).
+      // Winning an auction was previously a no-op for money: this is the fix.
+      await prisma.transaction.create({
+        data: {
+          userId: winningBid.bidderId,
+          amount: winningBid.amount,
+          type: "ESCROW_HOLD",
+          status: "PENDING",
+          meta: JSON.stringify({
+            buyerId: winningBid.bidderId, sellerId: auction.sellerId, itemId: auction.itemId,
+            auctionId: auction.id, delivery: { type: "meetup" },
+          }),
+        },
+      });
+
       const item = await prisma.clothingItem.findUnique({ where: { id: auction.itemId }, select: { title: true } });
-      await notify(winningBid.bidderId, "AUCTION_WON", "¡Ganaste la subasta!", `"${item?.title ?? "la prenda"}" por $${winningBid.amount}`, `/subastas/${auction.id}`);
-      await notify(auction.sellerId, "AUCTION_ENDED", "Tu subasta terminó con ganador", `$${winningBid.amount} por "${item?.title ?? "tu prenda"}"`, `/subastas/${auction.id}`);
+      await notify(winningBid.bidderId, "AUCTION_WON", "¡Ganaste la subasta!", `"${item?.title ?? "la prenda"}" por $${winningBid.amount} — coordiná la entrega y confirmá la recepción`, `/subastas/${auction.id}`);
+      await notify(auction.sellerId, "AUCTION_ENDED", "Tu subasta terminó con ganador", `$${winningBid.amount} por "${item?.title ?? "tu prenda"}" — el pago queda en custodia hasta que confirmen la recepción`, `/subastas/${auction.id}`);
     } else {
       await notify(auction.sellerId, "AUCTION_ENDED", "Tu subasta terminó sin pujas", "Podés volver a publicarla como venta o intercambio.", `/subastas/${auction.id}`);
     }

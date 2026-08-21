@@ -66,7 +66,7 @@ export default function PremiumPage() {
   }
 
   return (
-    <div className="max-w-sm mx-auto px-4 pt-6 pb-6">
+    <div className="max-w-sm lg:max-w-3xl mx-auto px-4 pt-6 pb-6">
       <div className="text-center mb-6">
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 mb-3">
           <Crown size={32} className="text-white" />
@@ -99,7 +99,7 @@ export default function PremiumPage() {
             </li>
           ))}
         </ul>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
           {PREMIUM_PLANS.map((plan) => (
             <div key={plan.id} className={`relative bg-white rounded-xl p-3 border ${plan.popular ? "border-amber-300" : "border-slate-100"}`}>
               {plan.popular && (
@@ -148,7 +148,7 @@ export default function PremiumPage() {
       )}
 
       <h2 className="font-semibold text-slate-700 text-sm mb-3">Créditos sueltos</h2>
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col lg:grid lg:grid-cols-3 gap-3">
         {CREDIT_PACKS.map((pack) => (
           <motion.div key={pack.id} whileTap={{ scale: 0.98 }}
             className={`relative rounded-2xl p-px bg-gradient-to-r ${pack.color} shadow-md`}>

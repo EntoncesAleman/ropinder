@@ -32,7 +32,7 @@ export default function MatchesPage() {
   );
 
   return (
-    <div className="max-w-sm mx-auto px-4 pt-6">
+    <div className="max-w-sm lg:max-w-3xl mx-auto px-4 lg:px-8 pt-6">
       <div className="flex items-center gap-2 mb-6">
         <Heart size={22} className="text-rose-500" fill="currentColor" />
         <h1 className="text-xl font-bold text-slate-800">Mis Matches</h1>
@@ -45,7 +45,7 @@ export default function MatchesPage() {
           <p className="text-sm text-center text-slate-400">Aún no tenés matches.<br />Seguí swipeando.</p>
         </div>
       ) : (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2 lg:grid lg:grid-cols-2 lg:gap-3">
           {matches.map((match, i) => (
             <motion.div key={match.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
               <Link href={`/matches/${match.id}`} className="flex items-center gap-3 bg-white rounded-2xl p-3.5 shadow-sm border border-slate-100 hover:border-rose-100 transition">

@@ -51,7 +51,7 @@ Tokens agregados: color de acento (rose, ya usado en toda la app), color de esta
 
 - `public/manifest.webmanifest`: nombre, iconos (se generan a partir del isotipo existente — la camisa/`Shirt` de lucide-react usada como logo en toda la UI, ver `app/signup/page.tsx`, `SwipeScreen.tsx` — no hay un archivo de logo real en el repo, así que se genera un ícono simple consistente con esa identidad), `display: standalone`, `theme_color`/`background_color` acorde a la marca (rose-500).
 - `app/layout.tsx`: `metadata.manifest`, `metadata.appleWebApp`, `viewport` con `themeColor`.
-- **No se agrega** service worker de caching/offline en este ciclo: la app ya tiene un SW real (`firebase-messaging-sw.js`) para push; sumarle responsabilidad de cache offline es un cambio de mayor riesgo (invalidación, versión de assets) que merece su propio ciclo con testing dedicado, no algo para colar junto con Subasta. Queda como próximo paso explícito.
+- **Ciclo 3**: se agregó el shell offline. Sin generador de PWA en el build (no hay `next-pwa` ni similar en `package.json`), precachear los chunks JS/CSS de `_next/static` es la forma clásica en que un SW rompe la app después de cada deploy (sirve el chunk viejo A junto al nuevo B) — por eso el SW **no** intercepta esos requests, solo navegaciones, y el único contenido cacheado es `public/offline.html` (estático, sin dependencias de build). Va en un archivo separado (`public/sw-offline.js`, registrado siempre) del SW de push (`firebase-messaging-sw.js`, que ahora incluye la misma lógica offline) porque re-registrar la *misma* URL de script con distintos query params no fuerza una reactivación confiable una vez que el worker ya está instalado — dos archivos evitan esa ambigüedad por completo. Ver el comentario en `public/sw-offline.js`.
 - Esto es suficiente para que el navegador ofrezca "Agregar a pantalla de inicio / Instalar app" y para que, cuando más adelante se empaquete con Capacitor (ya vendorizado en `/android` e `/ios`), el manifest ya esté alineado.
 
 ## 5. Subasta — modelo de datos
@@ -90,9 +90,8 @@ model Bid {
 - La actualización de `currentPrice` + inserción del `Bid` es una única transacción de Prisma con un `updateMany` condicionado (`WHERE currentPrice = <valor leído>`) para que dos pujas concurrentes por el mismo monto no puedan ganar ambas — el mismo patrón de "check-then-act atómico" ya usado para créditos en `/api/swipe`.
 - El cierre (`ENDED` + `winnerId`) lo decide un cron (`/api/cron/close-auctions`, mismo patrón que `monthly-reset`), nunca el cliente. El conteo regresivo en la UI es solo presentación, como pide la Fase 12.
 
-## 6. Lo que queda fuera de este ciclo (documentado, no oculto)
+## 6. Lo que queda fuera (documentado, no oculto)
 
-- Rediseño de Desktop Usuario y Desktop Admin (Fases 5 y 6 completas) — requiere el sistema de tokens maduro primero.
-- Canje por crédito (Fase 10) — ver AUDIT §6.
-- Service worker con cache offline (Fase 4, parte avanzada).
-- Generación de íconos de app en todas las resoluciones (192/512/maskable) — se deja un ícono base; el set completo es trabajo de diseño, no de arquitectura.
+Al cierre del Ciclo 3, lo único que sigue deliberadamente sin construir es **Canje por crédito** (Fase 10) — y no es una cuestión de esfuerzo, es que no existe una versión segura de implementarlo tal como está descripto. La Fase 10 pide "usuario entrega prenda → recibe valor de canje → elige otra prenda": para que eso sea una moneda real utilizable en una prenda de un tercero, alguien tiene que efectivamente comprarle la prenda entregada al usuario en el momento — o el propio Ropinder (riesgo financiero real: la plataforma quedaría debiendo saldo por mercadería que todavía no vendió, sin capital ni marco legal para sostener inventario, algo que no puedo autorizar por mi cuenta), o directamente colapsa en ser Venta con otro nombre (ya existe). Cualquier otra variante peer-to-peer que probé mentalmente termina siendo Intercambio (ya existe) con un paso extra. No hay una tercera opción segura — así que no se construye una versión cosmética que aparente ser una modalidad nueva sin serlo.
+
+Generación de íconos de app en todas las resoluciones (192/512/maskable) queda con un ícono base único; el set completo es trabajo de diseño, no de arquitectura.

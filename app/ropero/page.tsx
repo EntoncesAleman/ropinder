@@ -102,7 +102,8 @@ export default function RoperoPage() {
   if (!user || user.role === "ADMIN") return null;
 
   return (
-    <div className="max-w-sm mx-auto px-4 pt-6 pb-6">
+    <div className="max-w-sm lg:max-w-5xl mx-auto px-4 lg:px-8 pt-6 pb-6 lg:grid lg:grid-cols-[300px_1fr] lg:gap-8 lg:items-start">
+    <div className="lg:sticky lg:top-6 lg:flex lg:flex-col">
       <h1 className="font-extrabold text-slate-800 text-xl mb-5">Ropero</h1>
 
       <div className="grid grid-cols-2 gap-3 mb-6">
@@ -186,7 +187,9 @@ export default function RoperoPage() {
       <Link href="/subastas" className="flex items-center gap-2 bg-amber-50 border border-amber-100 rounded-2xl px-4 py-2.5 mb-4 text-xs text-amber-700 hover:bg-amber-100 transition">
         <Gavel size={14} /> Ver subastas activas →
       </Link>
+    </div>
 
+    <div>
       <div className="flex items-center justify-between mb-3">
         <h3 className="font-bold text-slate-800">Mis prendas</h3>
         <Link href="/profile/upload" className="flex items-center gap-1 text-xs text-rose-500 font-semibold hover:underline">
@@ -203,7 +206,7 @@ export default function RoperoPage() {
           </Link>
         </div>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 lg:grid lg:grid-cols-2 xl:grid-cols-3">
           {items.map((item) => (
             <motion.div key={item.id} layout className="flex items-center gap-3 bg-white rounded-2xl p-3 shadow-sm border border-slate-100">
               <Image src={item.imageUrl} alt={item.title} width={56} height={56} className="rounded-xl object-cover" />
@@ -242,6 +245,7 @@ export default function RoperoPage() {
           ))}
         </div>
       )}
+    </div>
     </div>
   );
 }

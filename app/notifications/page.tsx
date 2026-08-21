@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Bell, Heart, MessageCircle, ShieldAlert, ArrowLeft } from "lucide-react";
+import { Bell, Heart, MessageCircle, ShieldAlert, ArrowLeft, Gavel, Tag } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import Link from "next/link";
 
@@ -12,6 +12,10 @@ const ICONS: Record<string, typeof Bell> = {
   MATCH: Heart,
   MESSAGE: MessageCircle,
   REPORT_RESOLVED: ShieldAlert,
+  OFFER: Tag,
+  BID: Gavel,
+  AUCTION_WON: Gavel,
+  AUCTION_ENDED: Gavel,
 };
 
 export default function NotificationsPage() {
@@ -43,9 +47,9 @@ export default function NotificationsPage() {
   if (!user) return null;
 
   return (
-    <div className="max-w-sm mx-auto px-4 pt-6 pb-10">
+    <div className="max-w-sm lg:max-w-2xl mx-auto px-4 pt-6 pb-10">
       <div className="flex items-center justify-between mb-4">
-        <Link href="/" className="flex items-center gap-1 text-slate-400 hover:text-slate-600 text-sm">
+        <Link href="/" className="flex items-center gap-1 text-slate-400 hover:text-slate-600 text-sm lg:hidden">
           <ArrowLeft size={16} /> Volver
         </Link>
         {notifs.some((n) => !n.readAt) && (

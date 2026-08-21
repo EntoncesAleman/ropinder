@@ -52,8 +52,8 @@ export default function AuctionsPage() {
   if (!user) return null;
 
   return (
-    <div className="max-w-sm mx-auto px-4 pt-6 pb-10">
-      <Link href="/" className="flex items-center gap-1 text-slate-400 hover:text-slate-600 text-sm mb-4">
+    <div className="max-w-sm lg:max-w-6xl mx-auto px-4 lg:px-8 pt-6 pb-10">
+      <Link href="/" className="flex items-center gap-1 text-slate-400 hover:text-slate-600 text-sm mb-4 lg:hidden">
         <ArrowLeft size={16} /> Volver
       </Link>
       <h1 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
@@ -66,7 +66,7 @@ export default function AuctionsPage() {
           <p className="text-sm text-center">No hay subastas activas ahora.<br />Publicá una prenda en modalidad Subasta.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 lg:gap-4">
           {auctions.map((a) => (
             <Link key={a.id} href={`/subastas/${a.id}`} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100 hover:shadow-md transition">
               <div className="relative aspect-square">

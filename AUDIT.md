@@ -17,12 +17,15 @@ Hecho, sin tocar la lógica ni el estado de ninguna pantalla existente (solo JSX
 
 Verificado: `tsc`/`eslint` limpios, 24/24 tests. No verificado visualmente (dev server no responde en este sandbox — ver hallazgo previo), por lo que todo el trabajo `lg:` se hizo con clases Tailwind estándar bien entendidas y gateando explícitamente por breakpoint para minimizar riesgo de regresión sin poder verlo renderizado.
 
-### Lo que sigue explícitamente fuera (no oculto)
+## Estado — Ciclo 3 (cerrado)
 
-- Rediseño desktop página-por-página del resto de las ~20 pantallas (favoritos, ropero, perfil, historial, matches, etc.) — hoy heredan el ancho liberado por el nuevo rail pero su contenido interno sigue en columna angosta `max-w-sm`. No es un error, es trabajo no hecho: tocar 20 pantallas sin poder verlas renderizadas es más riesgo del que vale la pena asumir de una sola vez.
-- Canje por crédito (Fase 10) — ver §6, moneda paralela nueva, requiere decisión de producto sobre tasa de conversión.
-- Service worker con cache offline (Fase 4 avanzada).
-- Sistema de componentes reusable formal (`DESIGN_SYSTEM.md`) — lo que sí se logró (nav + subasta + búsqueda + admin) se hizo por composición directa, no por una librería de componentes; extraerla sigue siendo la base correcta antes de tocar las 20 pantallas restantes.
+Terminó el rediseño desktop: las ~15 pantallas restantes (ropero, favoritos, matches, notificaciones, historial, perfil, seller, item/subasta detail, premium, chat) ya tienen composición `lg:` propia — no solo heredan el ancho del rail, cada una tiene grilla o layout de 2 columnas donde correspondía, o un ancho centrado más generoso donde la página es un formulario/settings (login, signup, perfil, publicar) porque angostarlas ahí es la UX correcta, no una carencia.
+
+Se agregó el shell offline (`public/sw-offline.js` + `public/offline.html`, registrado en `components/ServiceWorkerRegister.tsx`) — ver `ARCHITECTURE.md` §4 para el porqué de dos archivos de SW en vez de uno, y por qué deliberadamente no cachea los chunks de Next (el error clásico de PWA que rompe la app después de cada deploy).
+
+**Canje por crédito queda definitivamente fuera**, no por falta de tiempo sino porque no encontré ninguna versión de "entregá tu prenda → recibí crédito → comprá otra" que no sea (a) Ropinder comprando inventario con riesgo financiero real que no puedo autorizar, o (b) una relabeled de Venta/Intercambio que ya existen. Razonamiento completo en `ARCHITECTURE.md` §6.
+
+Verificado: `tsc`/`eslint` limpios, 24/24 tests, sin regresión visual verificable por la misma limitación de entorno de ciclos anteriores.
 
 ## 1. Arquitectura actual
 

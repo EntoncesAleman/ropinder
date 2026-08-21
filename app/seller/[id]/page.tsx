@@ -60,8 +60,8 @@ export default function SellerPage({ params }: { params: Promise<{ id: string }>
   const { seller, items } = data;
 
   return (
-    <div className="max-w-sm mx-auto px-4 pt-6 pb-10">
-      <Link href="/" className="flex items-center gap-1 text-slate-400 hover:text-slate-600 text-sm mb-4">
+    <div className="max-w-sm lg:max-w-5xl mx-auto px-4 lg:px-8 pt-6 pb-10">
+      <Link href="/" className="flex items-center gap-1 text-slate-400 hover:text-slate-600 text-sm mb-4 lg:hidden">
         <ArrowLeft size={16} /> Volver
       </Link>
 
@@ -84,7 +84,7 @@ export default function SellerPage({ params }: { params: Promise<{ id: string }>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 lg:gap-4">
         {items.map((item) => (
           <motion.div key={item.id} layout className="bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100">
             <div className="relative aspect-square">

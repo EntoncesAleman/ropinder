@@ -133,7 +133,7 @@ export default function ProfilePage() {
   const isAdmin = user.role === "ADMIN";
 
   return (
-    <div className="max-w-sm mx-auto pb-6">
+    <div className="max-w-sm lg:max-w-xl mx-auto pb-6">
       <div className={`h-28 w-full ${isAdmin ? "bg-gradient-to-br from-slate-700 to-slate-900" : "bg-gradient-to-br from-rose-400 via-pink-400 to-amber-300"}`} />
 
       <div className="flex flex-col items-center text-center px-4 -mt-12 mb-6">

@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AppNav } from "@/components/AppNav";
 import { NotificationBell } from "@/components/NotificationBell";
+import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 
 const geist = Geist({ subsets: ["latin"] });
 
@@ -43,6 +44,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="es" className="h-full">
       <body className={`${geist.className} min-h-full bg-slate-50`}>
         <AuthProvider>
+          <ServiceWorkerRegister />
           <NotificationBell />
           <AppNav />
           <main className="pb-20 lg:pb-0 lg:pl-56">{children}</main>

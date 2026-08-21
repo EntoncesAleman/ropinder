@@ -37,8 +37,8 @@ export default function FavoritesPage() {
   if (!user) return null;
 
   return (
-    <div className="max-w-sm mx-auto px-4 pt-6 pb-10">
-      <Link href="/" className="flex items-center gap-1 text-slate-400 hover:text-slate-600 text-sm mb-4">
+    <div className="max-w-sm lg:max-w-4xl mx-auto px-4 lg:px-8 pt-6 pb-10">
+      <Link href="/" className="flex items-center gap-1 text-slate-400 hover:text-slate-600 text-sm mb-4 lg:hidden">
         <ArrowLeft size={16} /> Volver
       </Link>
       <h1 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
@@ -52,7 +52,7 @@ export default function FavoritesPage() {
         </div>
       ) : (
         <AnimatePresence>
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 lg:grid lg:grid-cols-2 xl:grid-cols-3">
             {favorites.map(({ itemId, item }) => (
               <motion.div key={itemId} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 className="flex items-center gap-3 bg-white rounded-2xl p-3 shadow-sm border border-slate-100">

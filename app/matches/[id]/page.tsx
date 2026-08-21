@@ -207,7 +207,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
   const acceptedTradeForItem = acceptedOfferForItem?.offeredItemId ? acceptedOfferForItem : undefined;
 
   return (
-    <div className="flex flex-col h-screen max-w-sm mx-auto">
+    <div className="flex flex-col h-screen max-w-sm lg:max-w-2xl mx-auto lg:border-x lg:border-slate-100">
       <div className="flex items-center gap-3 px-4 py-3 bg-white border-b border-slate-100 shadow-sm">
         <Link href="/matches" className="text-slate-400 hover:text-slate-600">
           <ArrowLeft size={20} />

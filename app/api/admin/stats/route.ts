@@ -71,8 +71,8 @@ export async function GET() {
   const activity: ActivityItem[] = [
     ...recentUsers.map((u): ActivityItem => ({ id: `u-${u.id}`, kind: "USER", label: "Nuevo usuario", detail: u.name, link: `/admin/users/${u.id}`, createdAt: u.createdAt.toISOString() })),
     ...recentItems.map((i): ActivityItem => ({ id: `i-${i.id}`, kind: "ITEM", label: `Nueva publicación (${i.listingType})`, detail: `"${i.title}" de ${i.user.name}`, link: `/item/${i.id}`, createdAt: i.createdAt.toISOString() })),
-    ...recentSales.map((s): ActivityItem => ({ id: `s-${s.id}`, kind: "SALE", label: "Venta cobrada", detail: `$${s.amount.toFixed(2)} — ${s.user.name}`, link: "/admin?tab=transacciones", createdAt: s.createdAt.toISOString() })),
-    ...recentReports.map((r): ActivityItem => ({ id: `r-${r.id}`, kind: "REPORT", label: "Nuevo reporte", detail: `${r.reason} — de ${r.reporter.name}`, link: "/admin?tab=reportes", createdAt: r.createdAt.toISOString() })),
+    ...recentSales.map((s): ActivityItem => ({ id: `s-${s.id}`, kind: "SALE", label: "Venta cobrada", detail: `$${s.amount.toFixed(2)} — ${s.user.name}`, link: "/admin/transacciones", createdAt: s.createdAt.toISOString() })),
+    ...recentReports.map((r): ActivityItem => ({ id: `r-${r.id}`, kind: "REPORT", label: "Nuevo reporte", detail: `${r.reason} — de ${r.reporter.name}`, link: "/admin/reportes", createdAt: r.createdAt.toISOString() })),
     ...recentAuctions.map((a): ActivityItem => ({ id: `a-${a.id}`, kind: "AUCTION", label: "Nueva subasta", detail: `"${a.item.title}" desde $${a.startingPrice}`, link: `/subastas/${a.id}`, createdAt: a.createdAt.toISOString() })),
     ...recentBids.map((b): ActivityItem => ({ id: `b-${b.id}`, kind: "BID", label: "Nueva puja", detail: `$${b.amount} — ${b.bidder.name}`, link: `/subastas/${b.auctionId}`, createdAt: b.createdAt.toISOString() })),
   ].sort((x, y) => new Date(y.createdAt).getTime() - new Date(x.createdAt).getTime()).slice(0, 15);

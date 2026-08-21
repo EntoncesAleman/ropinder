@@ -54,3 +54,45 @@ Reemplaza el "12 cards y nada más" del screenshot. Todo con datos reales — "A
 ## 5. Lo que queda fuera de este ciclo (ver ADMIN_ROADMAP.md)
 
 Roles granulares, audit log, categorías/inventario como módulos dedicados, marketing/CMS, gráficos de series temporales. Cada uno documentado con su motivo puntual en `ADMIN_AUDIT.md` §3, no omitido en silencio.
+
+## 6. Ciclo 2 — de pestañas de JS a rutas reales (ver ADMIN_AUDIT.md §5)
+
+### Shell (`app/admin/layout.tsx`)
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│ ☰  Dashboard / Publicaciones      [ Buscar... ]        🔔  Tom ▾  │  ← topbar, full-bleed
+├────────────────────────────────────────────────────────┬─────────┤
+│                                                          │ Admin.  │
+│                                                          │ GENERAL │
+│              <children> (cada ruta abajo)                │ Dashb.  │
+│                                                          │ MARKET. │  ← sidebar,
+│                                                          │ Public. │     sticky,
+│                                                          │ Subast. │     colapsable
+│                                                          │  ...    │
+└──────────────────────────────────────────────────────────┴─────────┘
+```
+
+`ADMIN_NAV` en `lib/adminNav.ts` es la única fuente de verdad para el sidebar Y el breadcrumb — un href nuevo ahí aparece en ambos automáticamente, no hay una segunda lista que se pueda desincronizar.
+
+### Rutas
+
+| Ruta | Contenido | Reemplaza (Ciclo 1) |
+|---|---|---|
+| `/admin` | Dashboard: 6 stat cards + Actividad reciente + Requiere atención | `tab === "resumen"` |
+| `/admin/publicaciones` | Tabla + filtros + selección múltiple + ocultar/restaurar | `tab === "publicaciones"` |
+| `/admin/subastas` | Tabla + tabs de estado (Activas/Programadas/Finalizadas/Canceladas) + cancelar | `tab === "subastas"` |
+| `/admin/ofertas` | Tabla, solo lectura | `tab === "ofertas"` |
+| `/admin/transacciones` | Tabla + filtro "por aprobar" + aprobar/rechazar | `tab === "transacciones"` |
+| `/admin/usuarios` | Tabla (Usuario/Estado/Publicaciones/Operaciones/Reputación/Registro/Acciones) | `tab === "usuarios"` |
+| `/admin/reportes` | Bandeja de trabajo (pendientes/resueltos), sin cambios de fondo | `tab === "reportes"` |
+| `/admin/herramientas` | Igual que antes, restyled | `tab === "herramientas"` |
+| `/admin/seo` | Igual que antes, restyled | `tab === "seo"` |
+| `/admin/users/[id]` | Detalle de usuario, ahora dentro del shell, con tabs (Perfil/Prendas/Transacciones) | Página aislada sin sidebar/topbar |
+
+### Piezas compartidas nuevas
+
+- `components/admin/ui.tsx` — `PageHeader`, `Toolbar`, `SearchInput`, `FilterSelect`, `Panel`, `StatCard`, `Badge`, `EmptyState`, `TableWrap`/`Th`/`Td`, `ActionMenu`. Un solo lugar para el lenguaje visual (radios, bordes, tonos) — cambiarlo ahí cambia todo el admin.
+- `components/admin/BreadcrumbContext.tsx` — permite que una página de detalle (ej. `/admin/users/[id]`) inyecte el nombre real en el breadcrumb del layout sin prop drilling.
+- `components/admin/AdminSearch.tsx` + `GET /api/admin/search` — buscador global real (usuarios + publicaciones, sin resultados fabricados).
+- `GET /api/admin/items/export` — faltaba (Publicaciones no tenía export propio, usaba por error el de usuarios en un borrador de esta misma rama).

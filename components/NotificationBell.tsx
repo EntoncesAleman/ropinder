@@ -1,11 +1,13 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Bell } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 export function NotificationBell() {
   const { user } = useAuth();
+  const pathname = usePathname();
   const [unread, setUnread] = useState(0);
 
   useEffect(() => {
@@ -18,7 +20,9 @@ export function NotificationBell() {
     return () => clearInterval(interval);
   }, [user]);
 
-  if (!user) return null;
+  // /admin has its own bell in the topbar (see app/admin/layout.tsx) — this
+  // floating one would sit on top of it.
+  if (!user || pathname.startsWith("/admin")) return null;
 
   return (
     <Link href="/notifications" className="fixed top-4 right-4 z-40 w-10 h-10 rounded-full bg-white shadow-lg border border-slate-100 flex items-center justify-center text-slate-500 hover:text-rose-500 transition">

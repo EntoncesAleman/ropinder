@@ -20,7 +20,7 @@ const tabs = [
 const mobileTabs = tabs.filter((t) => !["/buscar", "/subastas"].includes(t.href));
 
 const adminTabs = [
-  { href: "/admin", icon: ShieldAlert, label: "Moderación" },
+  { href: "/admin", icon: ShieldAlert, label: "Admin" },
   { href: "/profile", icon: User, label: "Perfil" },
 ];
 

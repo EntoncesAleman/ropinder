@@ -14,6 +14,7 @@ export async function GET(req: NextRequest) {
       id: true, name: true, fullName: true, email: true, phone: true, role: true,
       bannedAt: true, isPremium: true, premiumUntil: true, verified: true,
       credits: true, balance: true, ratingAvg: true, ratingCount: true, createdAt: true,
+      _count: { select: { clothingItems: true, transactions: true } },
     },
     orderBy: { createdAt: "desc" },
     take: 200,

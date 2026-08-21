@@ -33,3 +33,24 @@ Auditoría del panel admin actual (`app/admin/page.tsx`, 763 líneas, single-pag
 ## 4. Plan de este ciclo (ver `ADMIN_ARCHITECTURE.md` y `ADMIN_ROADMAP.md`)
 
 Prioridad: arreglar el desperdicio de espacio real (nav duplicado, dashboard vacío) y cerrar el gap más visible (Publicaciones) — no las 40 fases del pedido de una sola vez. Esta vez, además, verificado visualmente contra un deploy de preview real antes de tocar producción (ver rama `admin-backoffice-redesign`), no solo con `tsc`/`eslint`.
+
+## 5. Ciclo 2 (`admin-backoffice-v2`) — por qué el Ciclo 1 no alcanzó
+
+El Ciclo 1 resolvió el nav duplicado y el dashboard vacío, pero dejó intacto el problema real: **una sola página cliente con `tab === "x" && (...)` renderizando listas de cards apiladas**. Eso produce, estructuralmente, la sensación de "pantalla de métricas con contenido alrededor" sin importar cuánto se ajuste el CSS — no hay URLs reales por sección, no hay tablas para gestión densa, no hay breadcrumb real (no hay routing), y cada fila de datos es una card con `shadow-sm rounded-xl`, el mismo lenguaje visual que la app de consumidor.
+
+Diagnóstico confirmado con el screenshot del Ciclo 1 en producción: se ve "generado", no "operado". La causa no era falta de módulos — era la arquitectura de una sola pantalla con pestañas de JS.
+
+### Qué cambia en este ciclo
+
+- **Rutas reales** en vez de `tab` en `useState`: cada sección (`/admin/publicaciones`, `/admin/usuarios`, `/admin/transacciones`, `/admin/ofertas`, `/admin/subastas`, `/admin/reportes`, `/admin/herramientas`, `/admin/seo`) es ahora una página propia bajo un `app/admin/layout.tsx` compartido — back/forward del navegador funciona, cada URL es citable, el breadcrumb del topbar es real (deriva de `usePathname()`, no de estado local).
+- **Topbar nuevo** (`app/admin/layout.tsx`): breadcrumb a la izquierda, buscador administrativo global al centro (`/api/admin/search`, real: usuarios + publicaciones), notificaciones y menú de perfil (con logout) a la derecha. La campanita flotante global (`NotificationBell`) se oculta en `/admin/**` — quedaría duplicada con la del topbar.
+- **Sidebar derecho**: sigue a la derecha (requisito explícito), pero ahora es colapsable (ícono-only + tooltip vía `title`, persistido en `localStorage`), con `sticky` para no scrollear con el contenido, y grupos reorganizados: General / Marketplace / Operaciones / Usuarios / **Moderación** (separada de Usuarios, antes vivían juntas) / Sistema.
+- **Tablas reales** reemplazan las listas de cards en Publicaciones, Usuarios, Transacciones, Ofertas y Subastas — `<table>` con `<thead>` fijo, columnas consistentes, badges cuadrados (`rounded`) en vez de píldoras (`rounded-full`). Reportes queda como bandeja de trabajo (cards), no tabla — el contenido es texto libre multilínea (motivo, detalles, partes involucradas), forzarlo a columnas fijas perdería información, y es el mismo formato que el propio pedido usa como ejemplo en FASE 16.
+- **Acciones masivas**: checkbox por fila + "ocultar N seleccionadas" en Publicaciones (reusa el endpoint existente por ítem, sin endpoint bulk nuevo).
+- **Detalle de usuario** (`/admin/users/[id]`) pasa a vivir dentro del mismo shell (antes era una página aislada sin sidebar/topbar) y gana pestañas (Perfil/Prendas/Transacciones) en vez de todo apilado en una columna angosta — el breadcrumb muestra el nombre real del usuario vía un context (`BreadcrumbContext`) que la página completa al cargar sus datos.
+- **Sistema visual**: radios reducidos (`rounded-md`/`rounded-lg`, nunca `rounded-full` salvo avatares), bordes en vez de sombras para separar superficies, color de marca reservado a estado/acción (se sacaron los fondos tintados rosa/ámbar/esmeralda de cada stat card — ahora son blancas con un punto de color solo cuando el tono importa).
+- **Dashboard**: de 12 stat cards a 6 (Usuarios, Publicaciones, Ventas por custodia, GMV, Comisión, Créditos/Premium) — el resto de las cifras del Ciclo 1 (Matches, Verificados, Suspendidos, Reportes resueltos) no desaparecieron, están donde corresponden (Usuarios, Reportes) en vez de duplicadas en el dashboard.
+
+### Lo que sigue sin existir, y por qué (sin cambios respecto al Ciclo 1)
+
+Audit log, roles granulares, categorías como módulo administrable, inventario como sección separada, marketing/CMS, gráficos de series temporales, configuración del sistema, logs. Ver `ADMIN_ROADMAP.md` — cada uno requiere modelo de datos nuevo o volumen real que hoy no existe, no son un gap de layout que este ciclo pueda resolver.

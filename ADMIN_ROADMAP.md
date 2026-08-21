@@ -12,6 +12,22 @@
 | Ofertas (tabla, solo lectura) | COMPLETADO |
 | Verificación visual real contra preview deploy (Playwright) | COMPLETADO |
 
+## Ciclo 2 (rama `admin-backoffice-v2`) — reescritura de composición
+
+| Ítem | Estado |
+|---|---|
+| Auditoría de por qué el Ciclo 1 no alcanzó (`ADMIN_AUDIT.md` §5) | COMPLETADO |
+| Rutas reales por sección (dejar de usar `tab` en `useState`) | COMPLETADO |
+| Topbar (breadcrumb real, buscador global, notificaciones, menú de perfil) | COMPLETADO |
+| Sidebar derecho colapsable + sticky | COMPLETADO |
+| Tablas reales en Publicaciones/Usuarios/Transacciones/Ofertas/Subastas | COMPLETADO |
+| Acciones masivas (Publicaciones: ocultar seleccionadas) | COMPLETADO |
+| Buscador administrativo global (`/api/admin/search`) | COMPLETADO |
+| Detalle de usuario dentro del shell + tabs | COMPLETADO |
+| Sistema visual: radios reducidos, bordes en vez de sombras, color reservado a estado | COMPLETADO |
+| Dashboard: 12 stat cards → 6, jerarquizadas | COMPLETADO |
+| Verificación visual contra preview deploy (Playwright, todas las rutas) | PENDIENTE — ver sección de verificación al pie de este documento cuando se corra |
+
 ## Pendiente (próximos ciclos, con motivo — ver AUDIT §3)
 
 | Ítem | Estado | Por qué no en este ciclo |

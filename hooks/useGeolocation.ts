@@ -9,7 +9,7 @@ export function useGeolocation() {
 
   useEffect(() => {
     if (!navigator.geolocation) {
-      setLoading(false);
+      Promise.resolve().then(() => setLoading(false));
       return;
     }
     navigator.geolocation.getCurrentPosition(

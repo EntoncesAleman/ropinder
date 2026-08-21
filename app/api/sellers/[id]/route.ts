@@ -15,6 +15,13 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
 
   const items = await prisma.clothingItem.findMany({
     where: { userId: id, archived: false },
+    // Exclude latitude/longitude: that's the seller's exact home GPS, not
+    // something a visitor to their profile should ever receive.
+    select: {
+      id: true, title: true, description: true, size: true, brand: true, condition: true,
+      category: true, imageUrl: true, price: true, isBumped: true, bumpedAt: true, isAd: true,
+      archived: true, soldAt: true, createdAt: true, expiresAt: true, userId: true,
+    },
     orderBy: [{ isBumped: "desc" }, { createdAt: "desc" }],
   });
 

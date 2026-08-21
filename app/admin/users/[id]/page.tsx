@@ -44,7 +44,7 @@ export default function AdminUserDetailPage({ params }: { params: Promise<{ id: 
 
   useEffect(() => {
     if (!authLoading && admin?.role !== "ADMIN") { router.push("/"); return; }
-    if (admin?.role === "ADMIN") fetchDetail();
+    if (admin?.role === "ADMIN") Promise.resolve().then(() => fetchDetail());
   }, [admin, authLoading, router, fetchDetail]);
 
   async function toggleBan(banned: boolean) {
@@ -135,7 +135,7 @@ export default function AdminUserDetailPage({ params }: { params: Promise<{ id: 
   const { user: u, items, transactions, matchesCount, reportsReceivedCount } = data;
 
   return (
-    <div className="max-w-sm mx-auto px-4 pt-6 pb-10">
+    <div className="max-w-sm lg:max-w-2xl mx-auto px-4 pt-6 pb-10">
       <Link href="/admin" className="flex items-center gap-1 text-slate-400 hover:text-slate-600 text-sm mb-4">
         <ArrowLeft size={14} /> Volver al panel
       </Link>
@@ -232,7 +232,7 @@ export default function AdminUserDetailPage({ params }: { params: Promise<{ id: 
       <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-3">
         <p className="text-xs font-bold text-slate-600 flex items-center gap-1.5 mb-2"><KeyRound size={13} /> Resetear contraseña</p>
         <div className="flex items-center gap-2">
-          <input value={newPassword} onChange={(e) => setNewPassword(e.target.value)} type="text" placeholder="Contraseña nueva (mín. 6)"
+          <input value={newPassword} onChange={(e) => setNewPassword(e.target.value)} type="text" placeholder="Contraseña nueva (mín. 8)"
             className="flex-1 border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-rose-300" />
           <button onClick={handleResetPassword} disabled={busy || newPassword.length < 6} className="text-xs bg-slate-700 text-white font-semibold px-3 py-1.5 rounded-lg disabled:opacity-50">
             Resetear

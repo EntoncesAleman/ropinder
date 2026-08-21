@@ -1,6 +1,8 @@
 "use client";
 import { motion, useMotionValue, useTransform, PanInfo } from "framer-motion";
-import { Tag, Ruler, Star, MapPin, Megaphone } from "lucide-react";
+import { Tag, Ruler, Star, MapPin, Megaphone, Info } from "lucide-react";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 export interface ClothingItemWithDistance {
   id: string;
@@ -23,6 +25,7 @@ interface Props {
 const SWIPE_THRESHOLD = 120;
 
 export function ClothingCard({ item, onSwipe, isTop }: Props) {
+  const router = useRouter();
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-300, 300], [-25, 25]);
   const likeOpacity = useTransform(x, [20, 100], [0, 1]);
@@ -67,11 +70,13 @@ export function ClothingCard({ item, onSwipe, isTop }: Props) {
 
       <div className="w-full h-full rounded-3xl overflow-hidden shadow-2xl bg-white flex flex-col">
         <div className="relative flex-1 overflow-hidden">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <Image
             src={item.imageUrl}
             alt={item.title}
-            className="w-full h-full object-cover"
+            fill
+            sizes="(max-width: 480px) 100vw, 384px"
+            priority={isTop}
+            className="object-cover"
             draggable={false}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
@@ -80,12 +85,23 @@ export function ClothingCard({ item, onSwipe, isTop }: Props) {
               <Megaphone size={10} /> Publicidad
             </span>
           )}
+          <button
+            type="button"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); router.push(`/item/${item.id}`); }}
+            className="absolute top-4 right-4 bg-white/90 hover:bg-white rounded-full p-2 shadow transition"
+            aria-label="Ver detalles"
+          >
+            <Info size={16} className="text-slate-700" />
+          </button>
           <div className="absolute bottom-4 left-4 right-4 text-white">
             <h2 className="text-2xl font-bold drop-shadow">{item.title}</h2>
             <div className="flex items-center gap-1 mt-1 text-sm opacity-90">
-              <img
+              <Image
                 src={item.user.avatar}
                 alt={item.user.name}
+                width={20}
+                height={20}
                 className="w-5 h-5 rounded-full object-cover border border-white"
               />
               <span>{item.user.name}</span>

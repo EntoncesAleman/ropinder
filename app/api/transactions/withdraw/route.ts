@@ -1,15 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
-
-// availableAt already marks release + 48h. Withdrawing between that and
-// +24h more (i.e. release + 72h) costs a fee; after that it's free.
-const FEE_WINDOW_HOURS = 24;
-const WITHDRAWAL_FEE_RATE = 0.05;
-
-function feeFreeAt(availableAt: Date) {
-  return new Date(availableAt.getTime() + FEE_WINDOW_HOURS * 60 * 60 * 1000);
-}
+import { WITHDRAWAL_FEE_RATE, splitByFeeWindow, withdrawableAfterFee, calculateWithdrawal } from "@/lib/withdrawal";
 
 export async function GET() {
   const session = await getSession();
@@ -23,14 +15,11 @@ export async function GET() {
     where: { userId: session.id, type: { in: ["ESCROW_RELEASE", "ESCROW_REFUND"] }, withdrawnAt: null, availableAt: { gt: now } },
   });
 
-  const withFee = matured.filter((t) => now < feeFreeAt(t.availableAt!));
-  const noFee = matured.filter((t) => now >= feeFreeAt(t.availableAt!));
-  const withFeeAmount = withFee.reduce((sum, t) => sum + t.amount, 0);
-  const noFeeAmount = noFee.reduce((sum, t) => sum + t.amount, 0);
+  const { withFeeAmount, noFeeAmount } = splitByFeeWindow(matured, now);
 
   return NextResponse.json({
     withdrawable: withFeeAmount + noFeeAmount,
-    withdrawableAfterFee: noFeeAmount + withFeeAmount * (1 - WITHDRAWAL_FEE_RATE),
+    withdrawableAfterFee: withdrawableAfterFee(withFeeAmount, noFeeAmount),
     feeAppliesTo: withFeeAmount,
     feeRate: WITHDRAWAL_FEE_RATE,
     pending: pending.reduce((sum, t) => sum + t.amount, 0),
@@ -38,9 +27,13 @@ export async function GET() {
   });
 }
 
-export async function POST() {
+export async function POST(req: NextRequest) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
+
+  const { payoutDestination } = await req.json().catch(() => ({ payoutDestination: undefined }));
+  if (!payoutDestination?.trim())
+    return NextResponse.json({ error: "Indicá un CBU, alias o cuenta para recibir el pago" }, { status: 400 });
 
   const now = new Date();
   const matured = await prisma.transaction.findMany({
@@ -49,20 +42,22 @@ export async function POST() {
   if (matured.length === 0)
     return NextResponse.json({ error: "No tenés fondos disponibles para retirar todavía" }, { status: 400 });
 
-  let gross = 0;
-  let fee = 0;
-  for (const t of matured) {
-    gross += t.amount;
-    if (now < feeFreeAt(t.availableAt!)) fee += t.amount * WITHDRAWAL_FEE_RATE;
-  }
-  const net = gross - fee;
+  const { gross, fee, net } = calculateWithdrawal(matured, now);
 
+  // Reserve the funds immediately (removes them from "withdrawable" and takes
+  // them off the user's balance) but the transfer itself needs a human to
+  // actually send it — there's no payout rail connected yet. An admin
+  // approves (marks COMPLETED once the transfer is sent) or rejects (reverses
+  // both of these) from /admin. See the sibling approve/reject routes.
   await prisma.transaction.updateMany({ where: { id: { in: matured.map((t) => t.id) } }, data: { withdrawnAt: now } });
   await prisma.user.update({ where: { id: session.id }, data: { balance: { decrement: gross } } });
 
   const withdrawal = await prisma.transaction.create({
-    data: { userId: session.id, amount: net, type: "WITHDRAWAL", status: "COMPLETED", meta: JSON.stringify({ gross, fee }) },
+    data: {
+      userId: session.id, amount: net, type: "WITHDRAWAL", status: "PENDING",
+      meta: JSON.stringify({ gross, fee, payoutDestination: payoutDestination.trim(), claimedTransactionIds: matured.map((t) => t.id) }),
+    },
   });
 
-  return NextResponse.json({ ok: true, amountWithdrawn: net, feeCharged: fee, withdrawal });
+  return NextResponse.json({ ok: true, pending: true, amountRequested: net, feeCharged: fee, withdrawal });
 }

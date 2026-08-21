@@ -40,7 +40,7 @@ export function GoogleSignInButton() {
       const data = await res.json().catch(() => ({ error: "Error de conexión" }));
       if (!res.ok) { setError(data.error ?? "No se pudo iniciar sesión con Google"); return; }
       await refresh();
-      router.push("/");
+      router.push(data.newUser ? "/onboarding/preferencias" : "/");
     };
 
     if (!navigator.geolocation) { await send(); return; }

@@ -49,7 +49,7 @@ export default function LoginPage() {
               className="w-full border border-slate-200 rounded-xl px-4 py-3 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300"
               required
             />
-            <button type="button" onClick={() => setShowPw((v) => !v)} className="absolute right-3 top-3 text-slate-400">
+            <button type="button" onClick={() => setShowPw((v) => !v)} aria-label={showPw ? "Ocultar contraseña" : "Mostrar contraseña"} className="absolute right-3 top-3 text-slate-400">
               {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
           </div>

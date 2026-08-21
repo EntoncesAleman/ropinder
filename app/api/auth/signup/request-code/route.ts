@@ -21,8 +21,8 @@ export async function POST(req: NextRequest) {
   if (typeof formRenderedAt === "number" && Date.now() - formRenderedAt < MIN_FORM_SECONDS * 1000)
     return NextResponse.json({ error: "Solicitud inválida" }, { status: 400 });
 
-  if (!name?.trim() || !fullName?.trim() || !email?.trim() || !password || password.length < 6)
-    return NextResponse.json({ error: "Completá todos los campos (contraseña mín. 6 caracteres)" }, { status: 400 });
+  if (!name?.trim() || !fullName?.trim() || !email?.trim() || !password || password.length < 8)
+    return NextResponse.json({ error: "Completá todos los campos (contraseña mín. 8 caracteres)" }, { status: 400 });
 
   const blocked = await prisma.blockedEmail.findUnique({ where: { email: email.trim().toLowerCase() } });
   if (blocked) return NextResponse.json({ error: "No podemos registrar ese email" }, { status: 403 });
@@ -46,6 +46,11 @@ export async function POST(req: NextRequest) {
   });
 
   const { sent } = await sendVerificationEmail(email, code);
+  if (!sent) console.error(`[signup] verification email NOT sent for ${email} — no mail provider configured or delivery failed`);
 
-  return NextResponse.json({ ok: true, emailSent: sent, devCode: sent ? undefined : code });
+  // Never hand the code back in the response outside local dev — anyone
+  // could sign up with an email they don't own and read it here, bypassing
+  // ownership verification entirely.
+  const devCode = !sent && process.env.NODE_ENV !== "production" ? code : undefined;
+  return NextResponse.json({ ok: true, emailSent: sent, devCode });
 }

@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "tsx --test tests/**/*.test.ts",
     "postinstall": "prisma generate",
     "db:seed": "npx tsx prisma/seed.ts",
     "admin:promote": "npx tsx scripts/make-admin.ts"
@@ -45,6 +46,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
     "tailwindcss": "^4",
+    "tsx": "^4.23.12",
     "typescript": "^5"
   },
   "prisma": {

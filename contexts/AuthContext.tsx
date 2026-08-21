@@ -39,7 +39,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }, []);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => { Promise.resolve().then(() => refresh()); }, [refresh]);
 
   return <Ctx.Provider value={{ user, loading, refresh, logout }}>{children}</Ctx.Provider>;
 }

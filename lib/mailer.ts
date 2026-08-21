@@ -1,5 +1,14 @@
 import nodemailer from "nodemailer";
 
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 // Provider priority: Resend (RESEND_API_KEY) > Gmail SMTP (GMAIL_USER + GMAIL_APP_PASSWORD) > dev mode
 // (logs to console and lets the caller show the value on screen instead of emailing it).
 
@@ -54,9 +63,13 @@ export async function sendVerificationEmail(email: string, code: string): Promis
 
 export async function sendSupportEmail(fromUserEmail: string, fromUserName: string, message: string): Promise<{ sent: boolean }> {
   const to = process.env.SUPPORT_EMAIL ?? "Soporte.Ropinder@gmail.com";
+  const safeName = escapeHtml(fromUserName);
+  const safeEmail = escapeHtml(fromUserEmail);
+  const safeMessage = escapeHtml(message).replace(/\n/g, "<br/>");
+  const safeSubjectName = fromUserName.replace(/[\r\n]+/g, " ");
   return sendMail(
     to,
-    `Consulta de soporte — ${fromUserName}`,
-    `<p><strong>De:</strong> ${fromUserName} (${fromUserEmail})</p><p>${message.replace(/\n/g, "<br/>")}</p>`
+    `Consulta de soporte — ${safeSubjectName}`,
+    `<p><strong>De:</strong> ${safeName} (${safeEmail})</p><p>${safeMessage}</p>`
   );
 }

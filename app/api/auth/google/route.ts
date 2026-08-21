@@ -39,8 +39,10 @@ export async function POST(req: NextRequest) {
   if (blocked) return NextResponse.json({ error: "No podemos registrar ese email" }, { status: 403 });
 
   let user = await prisma.user.findUnique({ where: { email: payload.email } });
+  let isNewUser = false;
 
   if (!user) {
+    isNewUser = true;
     if (typeof latitude !== "number" || typeof longitude !== "number")
       return NextResponse.json({ error: "Necesitamos tu ubicación (GPS) para crear la cuenta" }, { status: 400 });
 
@@ -73,6 +75,7 @@ export async function POST(req: NextRequest) {
   const res = NextResponse.json({
     token,
     user: { id: user.id, name: user.name, email: user.email, credits: user.credits, balance: user.balance, isPremium: user.isPremium, avatar: user.avatar, role: user.role },
+    newUser: isNewUser,
   });
   res.cookies.set(setTokenCookie(token));
   return res;

@@ -18,7 +18,7 @@ export function MatchModal({ open, matchId, onClose }: Props) {
           <motion.div className="relative flex flex-col items-center gap-5 rounded-3xl bg-gradient-to-br from-pink-500 via-rose-500 to-orange-400 p-10 shadow-2xl text-white max-w-xs mx-4"
             initial={{ scale: 0.5, rotate: -10 }} animate={{ scale: 1, rotate: 0 }} exit={{ scale: 0.5, opacity: 0 }}
             transition={{ type: "spring", stiffness: 200, damping: 15 }}>
-            <button onClick={onClose} className="absolute top-4 right-4 text-white/70 hover:text-white"><X size={20} /></button>
+            <button onClick={onClose} aria-label="Cerrar" className="absolute top-4 right-4 text-white/70 hover:text-white"><X size={20} /></button>
             <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1.2 }}>
               <Heart size={64} fill="white" className="drop-shadow-lg" />
             </motion.div>

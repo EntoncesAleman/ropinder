@@ -167,7 +167,7 @@ export default function ProfilePage() {
               {user.isPremium && <Crown size={16} className="text-amber-500" />}
               {isAdmin && <ShieldAlert size={16} className="text-slate-500" />}
               {!isAdmin && (
-                <button onClick={startEditing} className="text-slate-300 hover:text-rose-500">
+                <button onClick={startEditing} aria-label="Editar perfil" className="text-slate-300 hover:text-rose-500">
                   <Pencil size={13} />
                 </button>
               )}
@@ -233,7 +233,7 @@ export default function ProfilePage() {
           <div className="bg-slate-50 rounded-2xl p-4 mb-3 flex flex-col gap-2">
             <input type="password" placeholder="Contraseña actual" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)}
               className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300" />
-            <input type="password" placeholder="Contraseña nueva (mín. 6 caracteres)" value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
+            <input type="password" placeholder="Contraseña nueva (mín. 8 caracteres)" value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
               className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300" />
             {passwordError && <p className="text-xs text-rose-500">{passwordError}</p>}
             {passwordSaved && <p className="text-xs text-emerald-600">Contraseña actualizada ✓</p>}

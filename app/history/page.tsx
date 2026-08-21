@@ -30,7 +30,7 @@ export default function HistoryPage() {
 
   useEffect(() => {
     if (!loading && !user) { router.push("/login"); return; }
-    if (user) fetchTxs();
+    if (user) Promise.resolve().then(() => fetchTxs());
   }, [user, loading, router, fetchTxs]);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center text-slate-400 text-sm">Cargando...</div>;
@@ -57,7 +57,12 @@ export default function HistoryPage() {
           {txs.map((t) => (
             <div key={t.id} className="flex items-center justify-between bg-white rounded-xl p-3 shadow-sm border border-slate-100">
               <div>
-                <p className="text-sm font-medium text-slate-700">{TYPE_LABEL[t.type] ?? t.type}</p>
+                <p className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+                  {TYPE_LABEL[t.type] ?? t.type}
+                  {t.status === "PENDING" && (
+                    <span className="text-[10px] font-semibold bg-amber-100 text-amber-700 rounded-full px-2 py-0.5">Pendiente</span>
+                  )}
+                </p>
                 <p className="text-[11px] text-slate-400">{new Date(t.createdAt).toLocaleString("es-AR")}</p>
               </div>
               <p className={`text-sm font-bold ${t.amount >= 0 ? "text-emerald-600" : "text-rose-500"}`}>

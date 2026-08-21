@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -10,16 +10,32 @@ const geist = Geist({ subsets: ["latin"] });
 export const metadata: Metadata = {
   metadataBase: new URL("https://ropinder.vercel.app"),
   title: "Ropinder – Intercambiá y vendé ropa cerca tuyo",
-  description: "Publicá tus prendas, hacé match por swipe con gente cerca tuyo, y coordiná el intercambio o la venta con pago protegido en custodia.",
-  keywords: ["ropa usada", "intercambio de ropa", "venta de ropa", "segunda mano", "marketplace ropa", "swipe ropa"],
+  description: "Publicá tus prendas, hacé match por swipe con gente cerca tuyo, y coordiná el intercambio, la subasta o la venta con pago protegido en custodia.",
+  keywords: ["ropa usada", "intercambio de ropa", "venta de ropa", "subasta de ropa", "segunda mano", "marketplace ropa", "swipe ropa"],
   openGraph: {
     title: "Ropinder – Intercambiá y vendé ropa cerca tuyo",
-    description: "Publicá tus prendas, hacé match por swipe con gente cerca tuyo, y coordiná el intercambio o la venta con pago protegido en custodia.",
+    description: "Publicá tus prendas, hacé match por swipe con gente cerca tuyo, y coordiná el intercambio, la subasta o la venta con pago protegido en custodia.",
     type: "website",
     locale: "es_AR",
     siteName: "Ropinder",
   },
   robots: { index: true, follow: true },
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Ropinder",
+  },
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icon.svg",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#f43f5e",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -29,7 +45,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <AuthProvider>
           <NotificationBell />
           <AppNav />
-          <main className="pb-20">{children}</main>
+          <main className="pb-20 lg:pb-0 lg:pl-56">{children}</main>
         </AuthProvider>
       </body>
     </html>

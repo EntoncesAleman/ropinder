@@ -8,7 +8,7 @@ const MAX_ATTEMPTS = 5;
 export async function POST(req: NextRequest) {
   try {
     const { name, fullName, email, password, phone, code, acceptedTerms, address, crossStreets, postalCode, latitude, longitude } = await req.json();
-    if (!name?.trim() || !fullName?.trim() || !email?.trim() || !password || !phone?.trim() || !code)
+    if (!name?.trim() || !fullName?.trim() || !email?.trim() || !password || !code)
       return NextResponse.json({ error: "Faltan campos" }, { status: 400 });
     if (!acceptedTerms)
       return NextResponse.json({ error: "Tenés que aceptar los Términos y Condiciones" }, { status: 400 });
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     const hash = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
       data: {
-        name: name.trim(), fullName: fullName.trim(), email, password: hash, phone: phone.trim(), credits: 5,
+        name: name.trim(), fullName: fullName.trim(), email, password: hash, phone: phone?.trim() ?? "", credits: 5,
         emailVerified: true, termsAcceptedAt: new Date(),
         address: address?.trim() ?? "", crossStreets: crossStreets?.trim() ?? "", postalCode: postalCode?.trim() ?? "",
         latitude, longitude,
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
     await prisma.verificationCode.delete({ where: { id: record.id } });
 
     const token = signToken(user.id);
-    const res = NextResponse.json({ token, user });
+    const res = NextResponse.json({ token, user, newUser: true });
     res.cookies.set(setTokenCookie(token));
     return res;
   } catch (e) {

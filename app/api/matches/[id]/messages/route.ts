@@ -34,7 +34,9 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     ? { ...escrowTx, meta: JSON.parse(escrowTx.meta) as { buyerId?: string; sellerId?: string } }
     : null;
 
-  return NextResponse.json({ match, other, messages, escrow, myRating });
+  const offers = await prisma.offer.findMany({ where: { matchId: id }, orderBy: { createdAt: "desc" } });
+
+  return NextResponse.json({ match, other, messages, escrow, myRating, offers });
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

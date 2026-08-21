@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Zap, DollarSign, Crown, Rocket, Plus, Shirt, BadgeCheck, Store, Megaphone } from "lucide-react";
+import { Zap, DollarSign, Crown, Rocket, Plus, Shirt, BadgeCheck, Store, Megaphone, Gavel } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import Link from "next/link";
 import Image from "next/image";
@@ -24,6 +24,9 @@ export default function RoperoPage() {
   const [bumping, setBumping] = useState<string | null>(null);
   const [withdrawInfo, setWithdrawInfo] = useState<WithdrawInfo | null>(null);
   const [withdrawing, setWithdrawing] = useState(false);
+  const [payoutDestination, setPayoutDestination] = useState("");
+  const [withdrawError, setWithdrawError] = useState("");
+  const [withdrawRequested, setWithdrawRequested] = useState(false);
   const [verifying, setVerifying] = useState(false);
 
   useEffect(() => {
@@ -37,7 +40,7 @@ export default function RoperoPage() {
   }, []);
 
   useEffect(() => {
-    if (user && user.role !== "ADMIN") fetchWithdrawInfo();
+    if (user && user.role !== "ADMIN") Promise.resolve().then(() => fetchWithdrawInfo());
   }, [user, fetchWithdrawInfo]);
 
   const fetchItems = useCallback(async () => {
@@ -47,13 +50,27 @@ export default function RoperoPage() {
   }, []);
 
   useEffect(() => {
-    if (user && user.role !== "ADMIN") fetchItems();
+    if (user && user.role !== "ADMIN") Promise.resolve().then(() => fetchItems());
   }, [user, fetchItems]);
 
   async function handleWithdraw() {
+    if (!payoutDestination.trim()) { setWithdrawError("Indicá un CBU, alias o cuenta para recibir el pago"); return; }
     setWithdrawing(true);
-    const res = await fetch("/api/transactions/withdraw", { method: "POST" });
-    if (res.ok) { await refresh(); await fetchWithdrawInfo(); }
+    setWithdrawError("");
+    const res = await fetch("/api/transactions/withdraw", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ payoutDestination }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      await refresh(); await fetchWithdrawInfo();
+      setPayoutDestination("");
+      setWithdrawRequested(true);
+      setTimeout(() => setWithdrawRequested(false), 5000);
+    } else {
+      setWithdrawError(data.error ?? "No se pudo solicitar el retiro");
+    }
     setWithdrawing(false);
   }
 
@@ -122,11 +139,21 @@ export default function RoperoPage() {
               <span className="font-semibold text-slate-400">${withdrawInfo.pending.toFixed(2)}</span>
             </div>
           )}
-          {withdrawInfo.withdrawable > 0 && (
-            <button onClick={handleWithdraw} disabled={withdrawing}
-              className="mt-1 text-xs bg-slate-700 text-white font-semibold px-3 py-2 rounded-full hover:bg-slate-800 transition disabled:opacity-60">
-              {withdrawing ? "Retirando..." : `Retirar $${withdrawInfo.withdrawableAfterFee.toFixed(2)}`}
-            </button>
+          {withdrawInfo.withdrawable > 0 && !withdrawRequested && (
+            <div className="flex flex-col gap-1.5 mt-1">
+              <input value={payoutDestination} onChange={(e) => setPayoutDestination(e.target.value)}
+                placeholder="CBU, alias o cuenta para recibir el pago"
+                className="border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-slate-300" />
+              {withdrawError && <p className="text-[11px] text-rose-500">{withdrawError}</p>}
+              <button onClick={handleWithdraw} disabled={withdrawing}
+                className="text-xs bg-slate-700 text-white font-semibold px-3 py-2 rounded-full hover:bg-slate-800 transition disabled:opacity-60 self-start">
+                {withdrawing ? "Solicitando..." : `Retirar $${withdrawInfo.withdrawableAfterFee.toFixed(2)}`}
+              </button>
+              <p className="text-[10px] text-slate-400">Un admin revisa y envía la transferencia — no es instantáneo.</p>
+            </div>
+          )}
+          {withdrawRequested && (
+            <p className="text-xs text-emerald-600 font-medium mt-1">Retiro solicitado — te avisamos cuando se envíe.</p>
           )}
         </div>
       )}
@@ -151,10 +178,14 @@ export default function RoperoPage() {
       )}
 
       {items.length >= 5 && (
-        <Link href={`/seller/${user.id}`} className="flex items-center gap-2 bg-slate-50 border border-slate-100 rounded-2xl px-4 py-2.5 mb-4 text-xs text-slate-600 hover:bg-slate-100 transition">
+        <Link href={`/seller/${user.id}`} className="flex items-center gap-2 bg-slate-50 border border-slate-100 rounded-2xl px-4 py-2.5 mb-3 text-xs text-slate-600 hover:bg-slate-100 transition">
           <Store size={14} /> Ver mi perfil en modo tienda →
         </Link>
       )}
+
+      <Link href="/subastas" className="flex items-center gap-2 bg-amber-50 border border-amber-100 rounded-2xl px-4 py-2.5 mb-4 text-xs text-amber-700 hover:bg-amber-100 transition">
+        <Gavel size={14} /> Ver subastas activas →
+      </Link>
 
       <div className="flex items-center justify-between mb-3">
         <h3 className="font-bold text-slate-800">Mis prendas</h3>

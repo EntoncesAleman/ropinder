@@ -2,30 +2,36 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { PACKS, PackId } from "@/lib/pricing";
+import { applyPackToUser } from "@/lib/applyPack";
 
 export async function POST(req: NextRequest) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
 
-  const { packId, paymentMethod } = await req.json();
+  const { packId, paymentMethod, receiptUrl } = await req.json();
   const pack = PACKS[packId as PackId];
   if (!pack) return NextResponse.json({ error: "Pack inválido" }, { status: 400 });
 
-  await new Promise((r) => setTimeout(r, 300));
+  // Bank transfer isn't verifiable automatically — the purchase stays
+  // PENDING (no credits/premium granted yet) until an admin confirms the
+  // transfer actually arrived and approves it from /admin.
+  if (paymentMethod === "bank_transfer") {
+    if (!receiptUrl) return NextResponse.json({ error: "Subí el comprobante de la transferencia" }, { status: 400 });
 
-  const updates: Record<string, unknown> = {};
-  if (pack.credits > 0) updates.credits = { increment: pack.credits };
-  if ("verified" in pack && pack.verified) { updates.verified = true; updates.verifiedAt = new Date(); }
-
-  if ("premium" in pack && pack.premium) {
-    const current = await prisma.user.findUnique({ where: { id: session.id }, select: { premiumUntil: true, isPremium: true } });
-    const base = current?.isPremium && current.premiumUntil && current.premiumUntil > new Date() ? current.premiumUntil : new Date();
-    updates.isPremium = true;
-    updates.premiumUntil = new Date(base.getTime() + pack.days * 24 * 60 * 60 * 1000);
-    updates.premiumPlan = packId;
+    const tx = await prisma.transaction.create({
+      data: {
+        userId: session.id,
+        amount: pack.price,
+        type: "CREDIT_PURCHASE",
+        status: "PENDING",
+        meta: JSON.stringify({ packId, paymentMethod: "bank_transfer", receiptUrl, credits: pack.credits, currency: pack.currency }),
+      },
+    });
+    return NextResponse.json({ ok: true, transaction: tx, pending: true });
   }
 
-  await prisma.user.update({ where: { id: session.id }, data: updates });
+  await new Promise((r) => setTimeout(r, 300));
+  await applyPackToUser(session.id, packId as PackId);
 
   const tx = await prisma.transaction.create({
     data: {

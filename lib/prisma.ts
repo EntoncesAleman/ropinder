@@ -5,7 +5,10 @@ const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 
 function createPrismaClient() {
   const adapter = new PrismaLibSql({
-    url: process.env.TURSO_DATABASE_URL ?? "file:prisma/dev.db",
+    // An empty string is never a valid Turso URL, so treat it the same as
+    // unset — lets local dev force the SQLite fallback via
+    // `TURSO_DATABASE_URL= npm run dev` without editing .env.
+    url: process.env.TURSO_DATABASE_URL || "file:./dev.db",
     authToken: process.env.TURSO_AUTH_TOKEN,
   });
   return new PrismaClient({ adapter });

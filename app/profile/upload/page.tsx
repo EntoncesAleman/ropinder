@@ -2,9 +2,17 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Upload, X, ImagePlus, CheckCircle, Zap } from "lucide-react";
+import { Upload, X, ImagePlus, CheckCircle, Zap, Tag, Repeat, Gavel } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { BRANDS, CATEGORIES, CONDITIONS, sizesForCategory } from "@/lib/catalog";
+import { BRANDS, CATEGORIES, CONDITIONS, STYLES, sizesForCategory } from "@/lib/catalog";
+
+type Modality = "VENTA" | "INTERCAMBIO" | "SUBASTA";
+
+const MODALITIES: { id: Modality; label: string; icon: typeof Tag; hint: string }[] = [
+  { id: "VENTA", label: "Venta", icon: Tag, hint: "Precio fijo" },
+  { id: "INTERCAMBIO", label: "Intercambio", icon: Repeat, hint: "Prenda por prenda" },
+  { id: "SUBASTA", label: "Subasta", icon: Gavel, hint: "Al mejor postor" },
+];
 
 export default function UploadPage() {
   const router = useRouter();
@@ -13,9 +21,13 @@ export default function UploadPage() {
   useEffect(() => {
     if (user?.role === "ADMIN") router.push("/admin");
   }, [user, router]);
-  const [form, setForm] = useState({ title: "", description: "", size: "", brand: "", condition: "Bueno", category: "Ropa", price: "" });
+  const [form, setForm] = useState({ title: "", description: "", size: "", brand: "", condition: "Bueno", category: "Ropa", style: "", price: "" });
   const [customBrand, setCustomBrand] = useState("");
   const [customSize, setCustomSize] = useState("");
+  const [modality, setModality] = useState<Modality>("VENTA");
+  const [auctionStartingPrice, setAuctionStartingPrice] = useState("");
+  const [auctionMinIncrement, setAuctionMinIncrement] = useState("");
+  const [auctionDurationHours, setAuctionDurationHours] = useState("24");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -41,6 +53,16 @@ export default function UploadPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!imageFile || !user) return;
+
+    if (modality === "VENTA" && !(Number(form.price) > 0)) {
+      setError("Ingresá un precio para vender la prenda");
+      return;
+    }
+    if (modality === "SUBASTA" && !(Number(auctionStartingPrice) > 0 && Number(auctionMinIncrement) > 0)) {
+      setError("Completá el precio inicial y el incremento mínimo de la subasta");
+      return;
+    }
+
     setLoading(true);
     setError("");
 
@@ -57,10 +79,23 @@ export default function UploadPage() {
     const brand = form.brand === "Otra" ? customBrand.trim() : form.brand;
     const size = form.size === "Otro" ? customSize.trim() : form.size;
 
+    const body: Record<string, unknown> = {
+      ...form, brand, size, imageUrl: uploadData.url,
+      price: modality === "VENTA" ? form.price : "",
+    };
+    if (modality === "SUBASTA") {
+      body.listingType = "SUBASTA";
+      body.auction = {
+        startingPrice: Number(auctionStartingPrice),
+        minIncrement: Number(auctionMinIncrement),
+        durationHours: Number(auctionDurationHours),
+      };
+    }
+
     const res = await fetch("/api/clothes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, brand, size, imageUrl: uploadData.url }),
+      body: JSON.stringify(body),
     });
 
     if (res.ok) {
@@ -160,12 +195,77 @@ export default function UploadPage() {
           {CONDITIONS.map((c) => <option key={c}>{c}</option>)}
         </select>
 
-        <div className="relative">
-          <span className="absolute left-4 top-3.5 text-slate-400 text-sm">$</span>
-          <input type="number" placeholder="Precio (opcional, dejá vacío para canje)" value={form.price}
-            onChange={(e) => setForm((p) => ({ ...p, price: e.target.value }))}
-            className="w-full border border-slate-200 rounded-xl pl-7 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300" min="0" step="0.01" />
+        <div>
+          <p className="text-xs text-slate-400 mb-2">Estilo (opcional, ayuda a que la vea la gente correcta)</p>
+          <div className="flex flex-wrap gap-2">
+            {STYLES.map((s) => {
+              const active = form.style === s.id;
+              return (
+                <button key={s.id} type="button"
+                  onClick={() => setForm((p) => ({ ...p, style: active ? "" : s.id }))}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition flex items-center gap-1 ${active ? "bg-rose-500 text-white border-rose-500" : "bg-white text-slate-600 border-slate-200 hover:border-rose-300"}`}>
+                  <span>{s.emoji}</span> {s.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
+
+        <div>
+          <p className="text-xs text-slate-400 mb-2">Modalidad</p>
+          <div className="grid grid-cols-3 gap-2">
+            {MODALITIES.map(({ id, label, icon: Icon, hint }) => {
+              const active = modality === id;
+              return (
+                <button key={id} type="button" onClick={() => setModality(id)}
+                  className={`flex flex-col items-center gap-1 rounded-xl border py-2.5 transition ${active ? "bg-rose-500 text-white border-rose-500" : "bg-white text-slate-600 border-slate-200 hover:border-rose-300"}`}>
+                  <Icon size={16} />
+                  <span className="text-xs font-semibold">{label}</span>
+                  <span className={`text-[10px] ${active ? "text-rose-100" : "text-slate-400"}`}>{hint}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {modality === "VENTA" && (
+          <div className="relative">
+            <span className="absolute left-4 top-3.5 text-slate-400 text-sm">$</span>
+            <input type="number" placeholder="Precio" value={form.price}
+              onChange={(e) => setForm((p) => ({ ...p, price: e.target.value }))}
+              className="w-full border border-slate-200 rounded-xl pl-7 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300" min="0" step="0.01" required />
+          </div>
+        )}
+
+        {modality === "INTERCAMBIO" && (
+          <p className="text-xs text-slate-400 bg-slate-50 rounded-xl px-4 py-3">
+            Sin precio: quien haga match va a poder proponerte cambiarla por una de sus prendas.
+          </p>
+        )}
+
+        {modality === "SUBASTA" && (
+          <div className="flex flex-col gap-3 bg-slate-50 rounded-xl p-4">
+            <div className="relative">
+              <span className="absolute left-4 top-3.5 text-slate-400 text-sm">$</span>
+              <input type="number" placeholder="Precio inicial" value={auctionStartingPrice}
+                onChange={(e) => setAuctionStartingPrice(e.target.value)}
+                className="w-full border border-slate-200 rounded-xl pl-7 pr-4 py-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-rose-300" min="0" step="0.01" required />
+            </div>
+            <div className="relative">
+              <span className="absolute left-4 top-3.5 text-slate-400 text-sm">$</span>
+              <input type="number" placeholder="Incremento mínimo por puja" value={auctionMinIncrement}
+                onChange={(e) => setAuctionMinIncrement(e.target.value)}
+                className="w-full border border-slate-200 rounded-xl pl-7 pr-4 py-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-rose-300" min="0" step="0.01" required />
+            </div>
+            <select value={auctionDurationHours} onChange={(e) => setAuctionDurationHours(e.target.value)}
+              className="border border-slate-200 rounded-xl px-4 py-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-rose-300">
+              <option value="6">Dura 6 horas</option>
+              <option value="24">Dura 1 día</option>
+              <option value="72">Dura 3 días</option>
+              <option value="168">Dura 7 días</option>
+            </select>
+          </div>
+        )}
 
         {error && <p className="text-rose-500 text-sm text-center">{error}</p>}
 

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Crown, Zap, CheckCircle, CreditCard, Lock, BadgeCheck } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { PaymentMethodModal } from "@/components/PaymentMethodModal";
 
 const CREDIT_PACKS = [
   { id: "credits_10", label: "10 créditos", price: "$2.500", desc: "Pack básico", color: "from-blue-400 to-cyan-400" },
@@ -30,28 +31,38 @@ export default function PremiumPage() {
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
+  const [modalPack, setModalPack] = useState<{ id: string; label: string; price: string } | null>(null);
+  const [pendingNotice, setPendingNotice] = useState(false);
 
   useEffect(() => {
     if (user?.role === "ADMIN") router.push("/admin");
   }, [user, router]);
 
-  async function handleBuy(packId: string) {
+  function openBuy(packId: string, label: string, price: string) {
     if (!user) { router.push("/login"); return; }
+    setModalPack({ id: packId, label, price });
+  }
+
+  async function handleBuy(packId: string, paymentMethod: "card" | "bank_transfer", receiptUrl?: string) {
     setSelected(packId); setLoading(true);
     const res = await fetch("/api/checkout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ packId, paymentMethod: "card" }),
+      body: JSON.stringify({ packId, paymentMethod, receiptUrl }),
     });
     const data = await res.json();
-    if (res.ok) {
-      await refresh();
-      setSuccess(packId);
-      setTimeout(() => { setSuccess(null); setSelected(null); }, 2500);
-    } else {
-      alert(data.error);
-    }
     setLoading(false);
+    if (!res.ok) { setSelected(null); throw new Error(data.error); }
+
+    if (data.pending) {
+      setPendingNotice(true);
+      setTimeout(() => setPendingNotice(false), 4000);
+      setSelected(null);
+      return;
+    }
+    await refresh();
+    setSuccess(packId);
+    setTimeout(() => { setSuccess(null); setSelected(null); }, 2500);
   }
 
   return (
@@ -103,7 +114,7 @@ export default function PremiumPage() {
                     <CheckCircle size={16} className="text-emerald-500" />
                   </motion.div>
                 ) : (
-                  <motion.button key="btn" onClick={() => handleBuy(plan.id)} disabled={loading && selected === plan.id}
+                  <motion.button key="btn" onClick={() => openBuy(plan.id, plan.label, plan.price)} disabled={loading && selected === plan.id}
                     className="w-full text-white text-[11px] font-semibold py-1.5 rounded-lg bg-gradient-to-r from-amber-400 to-orange-500 hover:opacity-90 transition disabled:opacity-60">
                     {loading && selected === plan.id ? "..." : "Elegir"}
                   </motion.button>
@@ -127,7 +138,7 @@ export default function PremiumPage() {
             </div>
             <div className="flex flex-col items-end gap-2">
               <span className="font-bold text-slate-700 text-sm">$3.500</span>
-              <button onClick={() => handleBuy("verified_badge")} disabled={loading && selected === "verified_badge"}
+              <button onClick={() => openBuy("verified_badge", "Insignia verificada", "$3.500")} disabled={loading && selected === "verified_badge"}
                 className="flex items-center gap-1.5 text-white text-xs font-semibold px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-400 to-cyan-500 hover:opacity-90 transition disabled:opacity-60">
                 <CreditCard size={13} /> {loading && selected === "verified_badge" ? "..." : "Comprar"}
               </button>
@@ -160,7 +171,7 @@ export default function PremiumPage() {
                       <CheckCircle size={22} className="text-emerald-500" />
                     </motion.div>
                   ) : (
-                    <motion.button key="btn" onClick={() => handleBuy(pack.id)} disabled={loading && selected === pack.id}
+                    <motion.button key="btn" onClick={() => openBuy(pack.id, pack.label, pack.price)} disabled={loading && selected === pack.id}
                       className={`flex items-center gap-1.5 text-white text-xs font-semibold px-3 py-1.5 rounded-xl bg-gradient-to-r ${pack.color} hover:opacity-90 transition disabled:opacity-60`}>
                       <CreditCard size={13} /> {loading && selected === pack.id ? "..." : "Comprar"}
                     </motion.button>
@@ -175,6 +186,24 @@ export default function PremiumPage() {
       <div className="flex items-center justify-center gap-2 mt-6 text-xs text-slate-400">
         <Lock size={12} /> Pago simulado — demo de pasarela
       </div>
+
+      <AnimatePresence>
+        {pendingNotice && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            className="fixed bottom-20 left-4 right-4 max-w-sm mx-auto bg-slate-800 text-white text-sm rounded-xl px-4 py-3 text-center shadow-lg z-50">
+            Comprobante recibido — un admin lo revisa y acredita el beneficio en breve.
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <PaymentMethodModal
+        open={!!modalPack}
+        label={modalPack?.label ?? ""}
+        price={modalPack?.price ?? ""}
+        onClose={() => setModalPack(null)}
+        onPayCard={async () => { if (modalPack) await handleBuy(modalPack.id, "card"); }}
+        onPayBankTransfer={async (receiptUrl) => { if (modalPack) await handleBuy(modalPack.id, "bank_transfer", receiptUrl); }}
+      />
     </div>
   );
 }

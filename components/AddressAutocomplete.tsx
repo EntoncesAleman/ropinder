@@ -18,7 +18,7 @@ export function AddressAutocomplete({ value, onChange, onSelect, placeholder }: 
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (value.trim().length < 3) { setSuggestions([]); return; }
+    if (value.trim().length < 3) { Promise.resolve().then(() => setSuggestions([])); return; }
     debounceRef.current = setTimeout(async () => {
       const res = await fetch(`/api/geocode?q=${encodeURIComponent(value)}`);
       if (res.ok) { setSuggestions(await res.json()); setOpen(true); }

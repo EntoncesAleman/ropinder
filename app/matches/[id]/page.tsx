@@ -2,21 +2,28 @@
 import { useEffect, useState, useRef, use } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, ArrowLeft, PackageCheck, CheckCircle, Flag, ShieldCheck, Star } from "lucide-react";
+import { Send, ArrowLeft, PackageCheck, CheckCircle, Flag, ShieldCheck, Star, Truck, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import Image from "next/image";
 import Link from "next/link";
 
 interface Message { id: string; senderId: string; text: string; createdAt: string; sender: { id: string; name: string; avatar: string } }
 interface SellerItem { id: string; title: string; price: number | null }
-interface Escrow { id: string; amount: number; type: "ESCROW_HOLD" | "ESCROW_RELEASE"; status: string; meta: { buyerId?: string; sellerId?: string } }
+interface DeliveryInfo { type: "meetup" | "shipping"; fullName?: string; address?: string }
+interface Escrow { id: string; amount: number; type: "ESCROW_HOLD" | "ESCROW_RELEASE"; status: string; meta: { buyerId?: string; sellerId?: string; delivery?: DeliveryInfo } }
 interface MyRating { id: string; score: number }
+interface Offer {
+  id: string; matchId: string; itemId: string; buyerId: string; sellerId: string;
+  amount: number; offeredItemId: string | null; completedAt: string | null;
+  status: "PENDING" | "ACCEPTED" | "REJECTED" | "CANCELLED"; createdAt: string;
+}
 interface ChatData {
   match: { id: string; userAId: string; userBId: string };
   other: { id: string; name: string; avatar: string };
   messages: Message[];
   escrow: Escrow | null;
   myRating: MyRating | null;
+  offers: Offer[];
 }
 
 export default function ChatPage({ params }: { params: Promise<{ id: string }> }) {
@@ -29,10 +36,19 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
   const [sendError, setSendError] = useState("");
   const [confirming, setConfirming] = useState(false);
   const [paying, setPaying] = useState(false);
-  const [payAmount, setPayAmount] = useState("");
   const [payItemId, setPayItemId] = useState("");
   const [sellerItems, setSellerItems] = useState<SellerItem[]>([]);
   const [payError, setPayError] = useState("");
+  const [myItems, setMyItems] = useState<SellerItem[]>([]);
+  const [deliveryType, setDeliveryType] = useState<"meetup" | "shipping">("meetup");
+  const [shipFullName, setShipFullName] = useState("");
+  const [shipAddress, setShipAddress] = useState("");
+  const [offerAmount, setOfferAmount] = useState("");
+  const [showOfferInput, setShowOfferInput] = useState(false);
+  const [offerBusy, setOfferBusy] = useState(false);
+  const [offerError, setOfferError] = useState("");
+  const [showTradeInput, setShowTradeInput] = useState(false);
+  const [tradeItemId, setTradeItemId] = useState("");
   const [reporting, setReporting] = useState(false);
   const [reportReason, setReportReason] = useState("");
   const [reportSent, setReportSent] = useState(false);
@@ -46,15 +62,16 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
       const d = await res.json();
       setData(d);
       if (!d.escrow) {
-        const sres = await fetch(`/api/sellers/${d.other.id}`);
+        const [sres, mres] = await Promise.all([fetch(`/api/sellers/${d.other.id}`), fetch(`/api/profile/items`)]);
         if (sres.ok) setSellerItems((await sres.json()).items ?? []);
+        if (mres.ok) setMyItems(await mres.json());
       }
     }
   }
 
   useEffect(() => {
     if (!loading && !user) { router.push("/login"); return; }
-    if (user) fetchChat();
+    if (user) Promise.resolve().then(() => fetchChat());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, loading]);
 
@@ -86,18 +103,60 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
     setSending(false);
   }
 
-  async function handlePay() {
-    const amount = Number(payAmount);
-    if (!amount || amount <= 0) { setPayError("Ingresá un monto válido"); return; }
+  async function handlePay(amount: number) {
+    if (deliveryType === "shipping" && (!shipFullName.trim() || !shipAddress.trim())) {
+      setPayError("Completá nombre y dirección de envío");
+      return;
+    }
     setPaying(true);
     setPayError("");
     const res = await fetch(`/api/matches/${id}/pay`, {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ amount, itemId: payItemId || undefined }),
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        amount, itemId: payItemId || undefined,
+        delivery: deliveryType === "shipping" ? { type: "shipping", fullName: shipFullName, address: shipAddress } : { type: "meetup" },
+      }),
     });
     const d = await res.json();
     if (!res.ok) setPayError(d.error ?? "Error al pagar");
     else await fetchChat();
     setPaying(false);
+  }
+
+  async function handleMakeOffer() {
+    const amount = Number(offerAmount);
+    if (!amount || amount <= 0 || !payItemId) { setOfferError("Elegí una prenda e ingresá un monto válido"); return; }
+    setOfferBusy(true);
+    setOfferError("");
+    const res = await fetch(`/api/matches/${id}/offers`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ itemId: payItemId, amount }),
+    });
+    const d = await res.json();
+    if (!res.ok) setOfferError(d.error ?? "No se pudo enviar la oferta");
+    else { setOfferAmount(""); setShowOfferInput(false); await fetchChat(); }
+    setOfferBusy(false);
+  }
+
+  async function handleProposeTrade() {
+    if (!payItemId || !tradeItemId) { setOfferError("Elegí cuál de tus prendas ofrecés a cambio"); return; }
+    setOfferBusy(true);
+    setOfferError("");
+    const res = await fetch(`/api/matches/${id}/offers`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ itemId: payItemId, offeredItemId: tradeItemId }),
+    });
+    const d = await res.json();
+    if (!res.ok) setOfferError(d.error ?? "No se pudo proponer el canje");
+    else { setTradeItemId(""); setShowTradeInput(false); await fetchChat(); }
+    setOfferBusy(false);
+  }
+
+  async function handleRespondOffer(offerId: string, action: "accept" | "reject" | "cancel" | "complete") {
+    setOfferBusy(true);
+    await fetch(`/api/matches/${id}/offers/${offerId}`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }),
+    });
+    await fetchChat();
+    setOfferBusy(false);
   }
 
   async function handleConfirmReceipt() {
@@ -133,9 +192,19 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
   if (loading || !data) return <div className="min-h-screen flex items-center justify-center text-slate-400 text-sm">Cargando chat...</div>;
   if (!user) return null;
 
-  const { other, messages, escrow, myRating } = data;
+  const { other, messages, escrow, myRating, offers } = data;
   const isBuyer = escrow?.meta.buyerId === user.id;
   const released = escrow?.type === "ESCROW_RELEASE";
+  const completedTrade = offers.find((o) => o.offeredItemId && o.completedAt);
+
+  const selectedItem = sellerItems.find((i) => i.id === payItemId);
+  const acceptedOfferForItem = offers.find((o) => o.itemId === payItemId && o.status === "ACCEPTED");
+  const myPendingOfferForItem = offers.find((o) => o.itemId === payItemId && o.buyerId === user.id && o.status === "PENDING");
+  const incomingOffers = offers.filter((o) => o.sellerId === user.id && o.status === "PENDING");
+  const payableAmount = acceptedOfferForItem
+    ? (acceptedOfferForItem.offeredItemId ? null : acceptedOfferForItem.amount)
+    : (selectedItem?.price ?? null);
+  const acceptedTradeForItem = acceptedOfferForItem?.offeredItemId ? acceptedOfferForItem : undefined;
 
   return (
     <div className="flex flex-col h-screen max-w-sm mx-auto">
@@ -198,56 +267,180 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
       </AnimatePresence>
 
       <AnimatePresence>
-        {!escrow && (
+        {!escrow && !completedTrade && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
             className="bg-slate-50 border-b border-slate-100 px-4 py-2.5 flex flex-col gap-2">
             <p className="text-xs text-slate-600 font-medium flex items-center gap-1.5">
-              <ShieldCheck size={14} /> El pago queda en custodia de Ropinder hasta confirmar la entrega.
+              <ShieldCheck size={14} /> El pago queda en custodia de Ropinder hasta confirmar la entrega — o coordiná un canje directo.
             </p>
             {sellerItems.length > 0 && (
-              <select value={payItemId} onChange={(e) => {
-                setPayItemId(e.target.value);
-                const item = sellerItems.find((i) => i.id === e.target.value);
-                if (item?.price) setPayAmount(String(item.price));
-              }} className="border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs bg-white">
-                <option value="">¿Qué prenda estás pagando? (opcional)</option>
+              <select value={payItemId} onChange={(e) => { setPayItemId(e.target.value); setShowOfferInput(false); setShowTradeInput(false); setOfferError(""); }}
+                className="border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs bg-white">
+                <option value="">¿Qué prenda te interesa?</option>
                 {sellerItems.map((i) => (
-                  <option key={i.id} value={i.id}>{i.title}{i.price ? ` — $${i.price}` : ""}</option>
+                  <option key={i.id} value={i.id}>{i.title}{i.price ? ` — $${i.price}` : " — para canje"}</option>
                 ))}
               </select>
             )}
-            <div className="flex items-center gap-2">
-              <input
-                type="number" min="0" step="0.01" value={payAmount} onChange={(e) => setPayAmount(e.target.value)}
-                placeholder="Monto acordado ($)"
-                className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-rose-300"
-              />
-              <button onClick={handlePay} disabled={paying}
-                className="text-xs bg-slate-700 text-white font-semibold px-3 py-1.5 rounded-full hover:bg-slate-800 transition disabled:opacity-60">
-                {paying ? "..." : "Pagar"}
-              </button>
-            </div>
+
+            {payItemId && (
+              <>
+                {acceptedTradeForItem && (
+                  <div className="flex items-center justify-between bg-emerald-50 rounded-lg px-2.5 py-1.5 gap-2">
+                    <p className="text-[11px] text-emerald-700 font-medium">✓ Canje aceptado — coordinen la entrega y confirmen acá</p>
+                    <button onClick={() => handleRespondOffer(acceptedTradeForItem.id, "complete")} disabled={offerBusy}
+                      className="text-[11px] bg-emerald-500 text-white font-semibold px-2.5 py-1 rounded-full hover:bg-emerald-600 transition disabled:opacity-60 flex-shrink-0">
+                      {offerBusy ? "..." : "Ya lo hicimos"}
+                    </button>
+                  </div>
+                )}
+                {acceptedOfferForItem && !acceptedTradeForItem && (
+                  <p className="text-[11px] text-emerald-600 font-medium">✓ Tu oferta de ${acceptedOfferForItem.amount} fue aceptada</p>
+                )}
+                {!acceptedOfferForItem && myPendingOfferForItem && (
+                  <div className="flex items-center justify-between bg-amber-50 rounded-lg px-2.5 py-1.5">
+                    <p className="text-[11px] text-amber-700">
+                      {myPendingOfferForItem.offeredItemId
+                        ? `Tu propuesta de canje ("${myItems.find((i) => i.id === myPendingOfferForItem.offeredItemId)?.title ?? "tu prenda"}") está pendiente`
+                        : `Tu oferta de $${myPendingOfferForItem.amount} está pendiente`}
+                    </p>
+                    <button onClick={() => handleRespondOffer(myPendingOfferForItem.id, "cancel")} disabled={offerBusy}
+                      className="text-[11px] text-slate-400 hover:text-rose-500 underline">Cancelar</button>
+                  </div>
+                )}
+
+                {payableAmount != null && (
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex gap-1.5">
+                      <button type="button" onClick={() => setDeliveryType("meetup")}
+                        className={`flex-1 flex items-center justify-center gap-1.5 text-[11px] font-medium rounded-lg px-2 py-1.5 border transition ${deliveryType === "meetup" ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-500 border-slate-200"}`}>
+                        <Users size={12} /> Coordinar en persona
+                      </button>
+                      <button type="button" onClick={() => setDeliveryType("shipping")}
+                        className={`flex-1 flex items-center justify-center gap-1.5 text-[11px] font-medium rounded-lg px-2 py-1.5 border transition ${deliveryType === "shipping" ? "bg-slate-800 text-white border-slate-800" : "bg-white text-slate-500 border-slate-200"}`}>
+                        <Truck size={12} /> Envío a domicilio
+                      </button>
+                    </div>
+                    {deliveryType === "shipping" && (
+                      <div className="flex flex-col gap-1.5">
+                        <p className="text-[10px] text-amber-600">Coordinación manual por ahora — todavía no gestionamos el envío con un courier.</p>
+                        <input value={shipFullName} onChange={(e) => setShipFullName(e.target.value)}
+                          placeholder="Nombre y apellido (como en el DNI)"
+                          className="border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-rose-300" />
+                        <input value={shipAddress} onChange={(e) => setShipAddress(e.target.value)}
+                          placeholder="Dirección de envío completa"
+                          className="border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-rose-300" />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  {payableAmount != null && (
+                    <button onClick={() => handlePay(payableAmount)} disabled={paying}
+                      className="text-xs bg-slate-800 text-white font-semibold px-3 py-1.5 rounded-full hover:bg-slate-900 transition disabled:opacity-60">
+                      {paying ? "..." : `Comprar $${payableAmount}`}
+                    </button>
+                  )}
+                  {!acceptedOfferForItem && !myPendingOfferForItem && selectedItem?.price && (
+                    <button onClick={() => { setShowOfferInput((v) => !v); setShowTradeInput(false); }}
+                      className="text-xs border border-slate-300 text-slate-600 font-semibold px-3 py-1.5 rounded-full hover:bg-slate-100 transition">
+                      Ofertar
+                    </button>
+                  )}
+                  {!acceptedOfferForItem && !myPendingOfferForItem && myItems.length > 0 && (
+                    <button onClick={() => { setShowTradeInput((v) => !v); setShowOfferInput(false); }}
+                      className="text-xs border border-slate-300 text-slate-600 font-semibold px-3 py-1.5 rounded-full hover:bg-slate-100 transition">
+                      Proponer canje
+                    </button>
+                  )}
+                </div>
+
+                {showOfferInput && (
+                  <div className="flex items-center gap-2">
+                    <input type="number" min="0" step="0.01" value={offerAmount} onChange={(e) => setOfferAmount(e.target.value)}
+                      placeholder="Tu oferta ($)"
+                      className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-rose-300" />
+                    <button onClick={handleMakeOffer} disabled={offerBusy}
+                      className="text-xs bg-rose-500 text-white font-semibold px-3 py-1.5 rounded-full hover:bg-rose-600 transition disabled:opacity-60">
+                      {offerBusy ? "..." : "Enviar"}
+                    </button>
+                  </div>
+                )}
+                {showTradeInput && (
+                  <div className="flex items-center gap-2">
+                    <select value={tradeItemId} onChange={(e) => setTradeItemId(e.target.value)}
+                      className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs bg-white">
+                      <option value="">¿Qué prenda tuya ofrecés?</option>
+                      {myItems.map((i) => <option key={i.id} value={i.id}>{i.title}</option>)}
+                    </select>
+                    <button onClick={handleProposeTrade} disabled={offerBusy}
+                      className="text-xs bg-rose-500 text-white font-semibold px-3 py-1.5 rounded-full hover:bg-rose-600 transition disabled:opacity-60">
+                      {offerBusy ? "..." : "Enviar"}
+                    </button>
+                  </div>
+                )}
+                {offerError && <p className="text-xs text-rose-500">{offerError}</p>}
+              </>
+            )}
             {payError && <p className="text-xs text-rose-500">{payError}</p>}
+
+            {incomingOffers.length > 0 && (
+              <div className="flex flex-col gap-1.5 mt-1 pt-2 border-t border-slate-200">
+                <p className="text-[11px] font-semibold text-slate-500">Ofertas recibidas</p>
+                {incomingOffers.map((o) => {
+                  const item = myItems.find((i) => i.id === o.itemId);
+                  const offeredItem = o.offeredItemId ? sellerItems.find((i) => i.id === o.offeredItemId) : undefined;
+                  return (
+                    <div key={o.id} className="flex items-center justify-between bg-white rounded-lg px-2.5 py-1.5 border border-slate-100">
+                      <p className="text-[11px] text-slate-600">
+                        {o.offeredItemId
+                          ? `${other.name} propone "${offeredItem?.title ?? "una prenda"}"${item ? ` por tu "${item.title}"` : ""}`
+                          : `${other.name} ofrece $${o.amount}${item ? ` por "${item.title}"` : ""}`}
+                      </p>
+                      <div className="flex gap-1.5">
+                        <button onClick={() => handleRespondOffer(o.id, "reject")} disabled={offerBusy}
+                          className="text-[11px] text-slate-400 hover:text-rose-500 px-2 py-0.5">Rechazar</button>
+                        <button onClick={() => handleRespondOffer(o.id, "accept")} disabled={offerBusy}
+                          className="text-[11px] bg-emerald-500 text-white font-semibold px-2.5 py-0.5 rounded-full hover:bg-emerald-600">Aceptar</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </motion.div>
         )}
 
         {escrow?.type === "ESCROW_HOLD" && isBuyer && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-            className="bg-amber-50 border-b border-amber-100 px-4 py-2.5 flex items-center justify-between">
-            <p className="text-xs text-amber-700 font-medium flex items-center gap-1.5">
-              <PackageCheck size={14} /> ¿Recibiste la prenda? (${escrow.amount} en custodia)
-            </p>
-            <motion.button whileTap={{ scale: 0.95 }} onClick={handleConfirmReceipt} disabled={confirming}
-              className="text-xs bg-amber-500 text-white font-semibold px-3 py-1.5 rounded-full hover:bg-amber-600 transition disabled:opacity-60">
-              {confirming ? "..." : "Confirmar Recepción"}
-            </motion.button>
+            className="bg-amber-50 border-b border-amber-100 px-4 py-2.5 flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-amber-700 font-medium flex items-center gap-1.5">
+                <PackageCheck size={14} /> ¿Recibiste la prenda? (${escrow.amount} en custodia)
+              </p>
+              <motion.button whileTap={{ scale: 0.95 }} onClick={handleConfirmReceipt} disabled={confirming}
+                className="text-xs bg-amber-500 text-white font-semibold px-3 py-1.5 rounded-full hover:bg-amber-600 transition disabled:opacity-60">
+                {confirming ? "..." : "Confirmar Recepción"}
+              </motion.button>
+            </div>
+            {escrow.meta.delivery?.type === "shipping" && (
+              <p className="text-[11px] text-amber-600">Envío a: {escrow.meta.delivery.fullName} — {escrow.meta.delivery.address}</p>
+            )}
           </motion.div>
         )}
 
         {escrow?.type === "ESCROW_HOLD" && !isBuyer && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-amber-50 border-b border-amber-100 px-4 py-2.5 flex items-center gap-2">
-            <ShieldCheck size={16} className="text-amber-500" />
-            <p className="text-xs text-amber-700 font-semibold">${escrow.amount} en custodia — esperando que {other.name} confirme la recepción.</p>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-amber-50 border-b border-amber-100 px-4 py-2.5 flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <ShieldCheck size={16} className="text-amber-500" />
+              <p className="text-xs text-amber-700 font-semibold">${escrow.amount} en custodia — esperando que {other.name} confirme la recepción.</p>
+            </div>
+            {escrow.meta.delivery?.type === "shipping" ? (
+              <p className="text-[11px] text-amber-600 flex items-center gap-1"><Truck size={11} /> Enviar a: {escrow.meta.delivery.fullName} — {escrow.meta.delivery.address}</p>
+            ) : (
+              <p className="text-[11px] text-amber-600 flex items-center gap-1"><Users size={11} /> Coordinar entrega en persona por el chat</p>
+            )}
           </motion.div>
         )}
 
@@ -260,7 +453,14 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
           </motion.div>
         )}
 
-        {released && !myRating && (
+        {completedTrade && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-emerald-50 border-b border-emerald-100 px-4 py-2.5 flex items-center gap-2">
+            <CheckCircle size={16} className="text-emerald-500" />
+            <p className="text-xs text-emerald-700 font-semibold">¡Canje completado!</p>
+          </motion.div>
+        )}
+
+        {(released || completedTrade) && !myRating && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white border-b border-slate-100 px-4 py-2.5 flex items-center gap-2">
             <p className="text-xs text-slate-500">Calificá a {other.name}:</p>
             <div className="flex gap-0.5">
@@ -272,7 +472,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
             </div>
           </motion.div>
         )}
-        {released && myRating && (
+        {(released || completedTrade) && myRating && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white border-b border-slate-100 px-4 py-2 text-xs text-slate-400">
             Calificaste a {other.name} con {myRating.score} ⭐
           </motion.div>

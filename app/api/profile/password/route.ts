@@ -8,8 +8,8 @@ export async function PATCH(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
 
   const { currentPassword, newPassword } = await req.json();
-  if (!currentPassword || !newPassword || newPassword.length < 6)
-    return NextResponse.json({ error: "Completá ambas contraseñas (nueva mín. 6 caracteres)" }, { status: 400 });
+  if (!currentPassword || !newPassword || newPassword.length < 8)
+    return NextResponse.json({ error: "Completá ambas contraseñas (nueva mín. 8 caracteres)" }, { status: 400 });
 
   const user = await prisma.user.findUnique({ where: { id: session.id } });
   if (!user) return NextResponse.json({ error: "No encontrado" }, { status: 404 });

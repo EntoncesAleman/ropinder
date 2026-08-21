@@ -9,8 +9,8 @@ export async function POST(req: NextRequest) {
 
   const { email, newPassword } = await req.json();
   if (!email?.trim()) return NextResponse.json({ error: "Falta el email" }, { status: 400 });
-  if (!newPassword || newPassword.length < 6)
-    return NextResponse.json({ error: "La contraseña nueva debe tener mín. 6 caracteres" }, { status: 400 });
+  if (!newPassword || newPassword.length < 8)
+    return NextResponse.json({ error: "La contraseña nueva debe tener mín. 8 caracteres" }, { status: 400 });
 
   const target = await prisma.user.findUnique({ where: { email: email.trim() } });
   if (!target) return NextResponse.json({ error: "No existe ningún usuario con ese email" }, { status: 404 });

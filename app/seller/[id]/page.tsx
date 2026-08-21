@@ -2,7 +2,7 @@
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowLeft, Star, BadgeCheck, Store, Rocket, Heart, Flag } from "lucide-react";
+import { ArrowLeft, Star, BadgeCheck, Store, Rocket, Heart, Flag, Repeat } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import Image from "next/image";
 import Link from "next/link";
@@ -94,11 +94,11 @@ export default function SellerPage({ params }: { params: Promise<{ id: string }>
                   <Rocket size={9} /> Destacada
                 </span>
               )}
-              <button onClick={() => toggleFavorite(item.id)}
+              <button onClick={() => toggleFavorite(item.id)} aria-label={favorites.has(item.id) ? "Quitar de favoritos" : "Agregar a favoritos"}
                 className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/90 flex items-center justify-center shadow">
                 <Heart size={13} className={favorites.has(item.id) ? "text-rose-500" : "text-slate-400"} fill={favorites.has(item.id) ? "currentColor" : "none"} />
               </button>
-              <button onClick={() => reportItem(item.id)} disabled={reportedItems.has(item.id)}
+              <button onClick={() => reportItem(item.id)} disabled={reportedItems.has(item.id)} aria-label="Reportar prenda"
                 className="absolute bottom-2 right-2 w-7 h-7 rounded-full bg-white/90 flex items-center justify-center shadow disabled:opacity-40">
                 <Flag size={12} className="text-slate-400" />
               </button>
@@ -106,7 +106,11 @@ export default function SellerPage({ params }: { params: Promise<{ id: string }>
             <div className="p-2.5">
               <p className="text-xs font-semibold text-slate-800 truncate">{item.title}</p>
               <p className="text-[11px] text-slate-400">{item.brand} · Talle {item.size}</p>
-              {item.price && <p className="text-xs font-bold text-emerald-600 mt-0.5">${item.price}</p>}
+              {item.price ? (
+                <p className="text-xs font-bold text-emerald-600 mt-0.5">${item.price}</p>
+              ) : (
+                <p className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600 mt-0.5"><Repeat size={10} /> Canje</p>
+              )}
             </div>
           </motion.div>
         ))}

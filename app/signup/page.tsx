@@ -28,7 +28,6 @@ export default function SignupPage() {
     e.preventDefault();
     if (!acceptedTerms) { setError("Tenés que aceptar los Términos y Condiciones"); return; }
     if (!coords) { setError("Elegí tu domicilio de la lista de sugerencias"); return; }
-    if (!form.phone.trim()) { setError("Falta tu celular"); return; }
     setLoading(true); setError("");
     const res = await fetch("/api/auth/signup/request-code", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -51,7 +50,7 @@ export default function SignupPage() {
     const data = await res.json().catch(() => ({ error: "Error de conexión con el servidor" }));
     if (!res.ok) { setError(data.error); setLoading(false); return; }
     await refresh();
-    router.push("/");
+    router.push(data.newUser ? "/onboarding/preferencias" : "/");
   }
 
   return (
@@ -86,10 +85,10 @@ export default function SignupPage() {
               className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300" required />
             <input type="email" placeholder="Email" value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
               className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300" required />
-            <input type="tel" placeholder="Celular" value={form.phone} onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
-              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300" required />
-            <input type="password" placeholder="Contraseña (mín. 6 caracteres)" value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
-              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300" required minLength={6} />
+            <input type="tel" placeholder="Celular (opcional)" value={form.phone} onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
+              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300" />
+            <input type="password" placeholder="Contraseña (mín. 8 caracteres)" value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
+              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300" required minLength={8} />
 
             <AddressAutocomplete
               value={address}

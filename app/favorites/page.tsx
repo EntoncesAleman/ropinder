@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Heart, ArrowLeft } from "lucide-react";
+import { Heart, ArrowLeft, Repeat } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import Image from "next/image";
 import Link from "next/link";
@@ -25,7 +25,7 @@ export default function FavoritesPage() {
   useEffect(() => {
     if (!loading && !user) { router.push("/login"); return; }
     if (!loading && user?.role === "ADMIN") { router.push("/admin"); return; }
-    if (user) fetchFavorites();
+    if (user) Promise.resolve().then(() => fetchFavorites());
   }, [user, loading, router, fetchFavorites]);
 
   async function remove(itemId: string) {
@@ -64,7 +64,11 @@ export default function FavoritesPage() {
                     <p className="text-xs text-slate-400">de {item.user.name}</p>
                   </div>
                 </Link>
-                {item.price && <p className="text-xs font-bold text-emerald-600">${item.price}</p>}
+                {item.price ? (
+                  <p className="text-xs font-bold text-emerald-600">${item.price}</p>
+                ) : (
+                  <p className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600"><Repeat size={10} /> Canje</p>
+                )}
                 <button onClick={() => remove(itemId)} className="text-slate-300 hover:text-rose-500 p-1">
                   <Heart size={16} fill="currentColor" />
                 </button>

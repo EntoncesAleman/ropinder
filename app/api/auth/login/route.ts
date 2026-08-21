@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { signToken, setTokenCookie } from "@/lib/auth";
+import { checkLoginRateLimit, recordLoginFailure, getClientIp } from "@/lib/ratelimit";
 
 export async function POST(req: NextRequest) {
   try {
@@ -9,11 +10,26 @@ export async function POST(req: NextRequest) {
     if (!email || !password)
       return NextResponse.json({ error: "Faltan campos" }, { status: 400 });
 
+    const ip = getClientIp(req);
+    const { blocked, retryAfterSeconds } = await checkLoginRateLimit(email, ip);
+    if (blocked) {
+      return NextResponse.json(
+        { error: "Demasiados intentos fallidos. Esperá unos minutos y volvé a intentar." },
+        { status: 429, headers: retryAfterSeconds ? { "Retry-After": String(retryAfterSeconds) } : undefined },
+      );
+    }
+
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) return NextResponse.json({ error: "Credenciales inválidas" }, { status: 401 });
+    if (!user) {
+      await recordLoginFailure(email, ip);
+      return NextResponse.json({ error: "Credenciales inválidas" }, { status: 401 });
+    }
 
     const ok = await bcrypt.compare(password, user.password);
-    if (!ok) return NextResponse.json({ error: "Credenciales inválidas" }, { status: 401 });
+    if (!ok) {
+      await recordLoginFailure(email, ip);
+      return NextResponse.json({ error: "Credenciales inválidas" }, { status: 401 });
+    }
 
     if (user.bannedAt) return NextResponse.json({ error: "Esta cuenta fue suspendida" }, { status: 403 });
 

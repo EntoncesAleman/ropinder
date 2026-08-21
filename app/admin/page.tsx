@@ -5,7 +5,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   ShieldAlert, Ban, Undo2, Check, X, UserCog, KeyRound, Download,
-  Users, Receipt, BarChart3, Flag, Zap, Wrench, Crown, Gift, Trash2, Search, ShieldOff,
+  Users, Receipt, BarChart3, Flag, Zap, Wrench, Crown, Gift, Trash2, Search, ShieldOff, Gavel,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -36,9 +36,24 @@ interface AdminUser {
 }
 
 interface AdminTx {
-  id: string; amount: number; type: string; status: string; createdAt: string;
+  id: string; amount: number; type: string; status: string; createdAt: string; meta: string;
   user: { id: string; name: string; email: string };
 }
+
+interface AdminAuction {
+  id: string; currentPrice: number; startingPrice: number; endsAt: string; status: string; createdAt: string;
+  item: { id: string; title: string; imageUrl: string };
+  seller: { id: string; name: string; email: string };
+  winner: { id: string; name: string; email: string } | null;
+  _count: { bids: number };
+}
+
+const AUCTION_STATUS_LABEL: Record<string, string> = {
+  SCHEDULED: "Programada",
+  ACTIVE: "Activa",
+  ENDED: "Finalizada",
+  CANCELLED: "Cancelada",
+};
 
 const STATUS_LABEL: Record<string, string> = {
   PENDING: "Pendiente",
@@ -52,6 +67,7 @@ const TABS = [
   { id: "reportes", label: "Reportes", icon: Flag },
   { id: "usuarios", label: "Usuarios", icon: Users },
   { id: "transacciones", label: "Transacciones", icon: Receipt },
+  { id: "subastas", label: "Subastas", icon: Gavel },
   { id: "herramientas", label: "Herramientas", icon: Wrench },
   { id: "seo", label: "SEO", icon: Search },
 ] as const;
@@ -65,6 +81,8 @@ export default function AdminPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [userQuery, setUserQuery] = useState("");
   const [txs, setTxs] = useState<AdminTx[]>([]);
+  const [auctions, setAuctions] = useState<AdminAuction[]>([]);
+  const [cancelAuctionBusyId, setCancelAuctionBusyId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [promoteEmail, setPromoteEmail] = useState("");
@@ -129,14 +147,22 @@ export default function AdminPage() {
     if (res.ok) setBlacklist(await res.json());
   }, []);
 
+  const fetchAuctions = useCallback(async () => {
+    const res = await fetch("/api/admin/auctions");
+    if (res.ok) setAuctions(await res.json());
+  }, []);
+
   useEffect(() => {
     if (user?.role !== "ADMIN") return;
-    fetchReports();
-    fetchStats();
-    fetchUsers("");
-    fetchTxs();
-    fetchBlacklist();
-  }, [user, fetchReports, fetchStats, fetchUsers, fetchTxs, fetchBlacklist]);
+    Promise.resolve().then(() => {
+      fetchReports();
+      fetchStats();
+      fetchUsers("");
+      fetchTxs();
+      fetchBlacklist();
+      fetchAuctions();
+    });
+  }, [user, fetchReports, fetchStats, fetchUsers, fetchTxs, fetchBlacklist, fetchAuctions]);
 
   async function handleAddBlacklist() {
     setBlacklistBusy(true);
@@ -249,6 +275,31 @@ export default function AdminPage() {
     setPromoBusy(false);
   }
 
+  const [approveBusyId, setApproveBusyId] = useState<string | null>(null);
+  async function approveTx(txId: string) {
+    setApproveBusyId(txId);
+    const res = await fetch(`/api/admin/transactions/${txId}/approve`, { method: "POST" });
+    if (res.ok) await fetchTxs();
+    setApproveBusyId(null);
+  }
+
+  const [rejectBusyId, setRejectBusyId] = useState<string | null>(null);
+  async function rejectTx(txId: string) {
+    if (!confirm("¿Rechazar esta transacción? Si es un retiro, se le devuelve el saldo al usuario.")) return;
+    setRejectBusyId(txId);
+    const res = await fetch(`/api/admin/transactions/${txId}/reject`, { method: "POST" });
+    if (res.ok) await fetchTxs();
+    setRejectBusyId(null);
+  }
+
+  async function cancelAuction(auctionId: string) {
+    if (!confirm("¿Cancelar esta subasta?")) return;
+    setCancelAuctionBusyId(auctionId);
+    const res = await fetch(`/api/admin/auctions/${auctionId}/cancel`, { method: "POST" });
+    if (res.ok) await fetchAuctions();
+    setCancelAuctionBusyId(null);
+  }
+
   async function deleteUser(userId: string) {
     if (!confirm("¿Borrar esta cuenta para siempre, junto con todo lo que publicó? No se puede deshacer.")) return;
     setDeleteBusyId(userId);
@@ -276,39 +327,56 @@ export default function AdminPage() {
   const resolved = reports.filter((r) => r.status === "RESOLVED" || r.status === "DISMISSED");
 
   return (
-    <div className="max-w-lg mx-auto px-4 pt-6 pb-10">
-      <div className="flex items-center gap-2 mb-4">
-        <ShieldAlert size={22} className="text-rose-500" />
-        <h1 className="font-bold text-slate-800 text-xl">Administración</h1>
-      </div>
-
-      <div className="flex gap-1 bg-slate-100 rounded-xl p-1 mb-5 overflow-x-auto">
+    // Desktop admin is a backoffice, not the app stretched wide: content on
+    // the left with real width to breathe, navigation as a right-hand rail
+    // (per spec) instead of the mobile pill row, no bottom app-nav feel.
+    <div className="max-w-lg lg:max-w-none mx-auto lg:mx-0 px-4 lg:px-8 pt-6 pb-10 lg:flex lg:flex-row-reverse lg:gap-8 lg:items-start">
+      <aside className="hidden lg:flex lg:flex-col lg:gap-1 lg:w-56 lg:flex-shrink-0 bg-white border border-slate-100 rounded-2xl p-3 lg:sticky lg:top-6">
+        <div className="flex items-center gap-2 px-2 py-2 mb-2">
+          <ShieldAlert size={20} className="text-rose-500" />
+          <h1 className="font-bold text-slate-800">Administración</h1>
+        </div>
         {TABS.map(({ id, label, icon: Icon }) => (
           <button key={id} onClick={() => setTab(id)}
-            className={`flex-1 flex items-center justify-center gap-1 text-xs font-semibold px-2 py-2 rounded-lg whitespace-nowrap transition ${tab === id ? "bg-white text-rose-500 shadow-sm" : "text-slate-500"}`}>
-            <Icon size={13} /> {label}
+            className={`flex items-center gap-2.5 text-sm font-semibold px-3 py-2.5 rounded-xl text-left transition ${tab === id ? "bg-rose-50 text-rose-600" : "text-slate-500 hover:bg-slate-50"}`}>
+            <Icon size={16} /> {label}
           </button>
         ))}
-      </div>
+      </aside>
 
-      {error && <p className="text-xs text-rose-500 mb-4">{error}</p>}
-
-      {tab === "resumen" && stats && (
-        <div className="grid grid-cols-2 gap-3">
-          <StatCard label="Usuarios totales" value={stats.totalUsers} />
-          <StatCard label="Suspendidos" value={stats.bannedUsers} tone="rose" />
-          <StatCard label="Premium activos" value={stats.premiumUsers} tone="amber" />
-          <StatCard label="Verificados" value={stats.verifiedUsers} tone="blue" />
-          <StatCard label="Prendas publicadas" value={stats.totalItems} />
-          <StatCard label="Matches totales" value={stats.totalMatches} />
-          <StatCard label="Reportes pendientes" value={stats.pendingReports} tone="rose" />
-          <StatCard label="Reportes resueltos" value={stats.resolvedReports} tone="emerald" />
-          <StatCard label="Ventas por custodia" value={stats.escrowTransactions} />
-          <StatCard label="Volumen transado (GMV)" value={`$${stats.gmv.toFixed(2)}`} tone="emerald" />
-          <StatCard label="Comisión ganada" value={`$${stats.commissionEarned.toFixed(2)}`} tone="emerald" />
-          <StatCard label="Ingresos créditos/Premium" value={`$${stats.creditsAndPremiumRevenue.toFixed(2)}`} tone="emerald" />
+      <div className="lg:flex-1 lg:min-w-0">
+        <div className="flex items-center gap-2 mb-4 lg:hidden">
+          <ShieldAlert size={22} className="text-rose-500" />
+          <h1 className="font-bold text-slate-800 text-xl">Administración</h1>
         </div>
-      )}
+
+        <div className="lg:hidden flex gap-1 bg-slate-100 rounded-xl p-1 mb-5 overflow-x-auto">
+          {TABS.map(({ id, label, icon: Icon }) => (
+            <button key={id} onClick={() => setTab(id)}
+              className={`flex-1 flex items-center justify-center gap-1 text-xs font-semibold px-2 py-2 rounded-lg whitespace-nowrap transition ${tab === id ? "bg-white text-rose-500 shadow-sm" : "text-slate-500"}`}>
+              <Icon size={13} /> {label}
+            </button>
+          ))}
+        </div>
+
+        {error && <p className="text-xs text-rose-500 mb-4">{error}</p>}
+
+        {tab === "resumen" && stats && (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <StatCard label="Usuarios totales" value={stats.totalUsers} />
+            <StatCard label="Suspendidos" value={stats.bannedUsers} tone="rose" />
+            <StatCard label="Premium activos" value={stats.premiumUsers} tone="amber" />
+            <StatCard label="Verificados" value={stats.verifiedUsers} tone="blue" />
+            <StatCard label="Prendas publicadas" value={stats.totalItems} />
+            <StatCard label="Matches totales" value={stats.totalMatches} />
+            <StatCard label="Reportes pendientes" value={stats.pendingReports} tone="rose" />
+            <StatCard label="Reportes resueltos" value={stats.resolvedReports} tone="emerald" />
+            <StatCard label="Ventas por custodia" value={stats.escrowTransactions} />
+            <StatCard label="Volumen transado (GMV)" value={`$${stats.gmv.toFixed(2)}`} tone="emerald" />
+            <StatCard label="Comisión ganada" value={`$${stats.commissionEarned.toFixed(2)}`} tone="emerald" />
+            <StatCard label="Ingresos créditos/Premium" value={`$${stats.creditsAndPremiumRevenue.toFixed(2)}`} tone="emerald" />
+          </div>
+        )}
 
       {tab === "reportes" && (
         <>
@@ -392,7 +460,7 @@ export default function AdminPage() {
             <input value={userQuery} onChange={(e) => { setUserQuery(e.target.value); fetchUsers(e.target.value); }}
               placeholder="Buscar por nombre o email..."
               className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-rose-300" />
-            <a href="/api/admin/users/export" className="flex items-center gap-1 text-xs text-slate-500 hover:text-rose-500 whitespace-nowrap"><Download size={12} /> CSV</a>
+            <Link href="/api/admin/users/export" className="flex items-center gap-1 text-xs text-slate-500 hover:text-rose-500 whitespace-nowrap"><Download size={12} /> CSV</Link>
           </div>
           <div className="flex flex-col gap-2">
             {users.map((u) => (
@@ -439,18 +507,89 @@ export default function AdminPage() {
             <a href="/api/admin/transactions/export" className="flex items-center gap-1 text-xs text-slate-500 hover:text-rose-500"><Download size={12} /> CSV</a>
           </div>
           <div className="flex flex-col gap-2">
-            {txs.map((t) => (
-              <div key={t.id} className="flex items-center justify-between bg-white rounded-xl p-3 shadow-sm border border-slate-100">
-                <div>
-                  <p className="text-sm font-medium text-slate-700">{t.type}</p>
-                  <p className="text-[11px] text-slate-400">{t.user.name} ({t.user.email}) · {new Date(t.createdAt).toLocaleString("es-AR")}</p>
+            {txs.map((t) => {
+              let meta: { paymentMethod?: string; receiptUrl?: string; packId?: string; payoutDestination?: string } = {};
+              try { meta = JSON.parse(t.meta); } catch { /* not JSON, ignore */ }
+              const isPendingTransfer = t.status === "PENDING" && meta.paymentMethod === "bank_transfer";
+              const isPendingWithdrawal = t.status === "PENDING" && t.type === "WITHDRAWAL";
+              const needsReview = isPendingTransfer || isPendingWithdrawal;
+              return (
+                <div key={t.id} className="flex items-center justify-between bg-white rounded-xl p-3 shadow-sm border border-slate-100">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
+                      {t.type}
+                      {isPendingTransfer && <span className="text-[10px] font-semibold bg-amber-100 text-amber-700 rounded-full px-2 py-0.5">Transferencia pendiente</span>}
+                      {isPendingWithdrawal && <span className="text-[10px] font-semibold bg-sky-100 text-sky-700 rounded-full px-2 py-0.5">Retiro pendiente</span>}
+                    </p>
+                    <p className="text-[11px] text-slate-400 truncate">{t.user.name} ({t.user.email}) · {new Date(t.createdAt).toLocaleString("es-AR")}</p>
+                    {isPendingTransfer && meta.receiptUrl && (
+                      <a href={meta.receiptUrl} target="_blank" rel="noopener noreferrer" className="text-[11px] text-rose-500 hover:underline">Ver comprobante</a>
+                    )}
+                    {isPendingWithdrawal && meta.payoutDestination && (
+                      <p className="text-[11px] text-sky-600">Enviar a: <span className="select-all font-semibold">{meta.payoutDestination}</span></p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <p className="text-sm font-bold text-slate-700">${t.amount.toFixed(2)}</p>
+                    {needsReview && (
+                      <>
+                        <button onClick={() => approveTx(t.id)} disabled={approveBusyId === t.id || rejectBusyId === t.id}
+                          className="text-xs bg-emerald-500 text-white font-semibold px-2.5 py-1.5 rounded-full hover:bg-emerald-600 transition disabled:opacity-60">
+                          {approveBusyId === t.id ? "..." : "Aprobar"}
+                        </button>
+                        <button onClick={() => rejectTx(t.id)} disabled={approveBusyId === t.id || rejectBusyId === t.id}
+                          className="text-xs bg-slate-100 text-slate-600 font-semibold px-2.5 py-1.5 rounded-full hover:bg-slate-200 transition disabled:opacity-60">
+                          {rejectBusyId === t.id ? "..." : "Rechazar"}
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
-                <p className="text-sm font-bold text-slate-700">${t.amount.toFixed(2)}</p>
-              </div>
-            ))}
+              );
+            })}
             {txs.length === 0 && <p className="text-sm text-slate-400 text-center py-8">Sin transacciones todavía.</p>}
           </div>
         </>
+      )}
+
+      {tab === "subastas" && (
+        <div className="flex flex-col gap-2">
+          {auctions.map((a) => {
+            const canCancel = a.status === "ACTIVE" || a.status === "SCHEDULED";
+            const statusTone: Record<string, string> = {
+              ACTIVE: "bg-emerald-100 text-emerald-700",
+              SCHEDULED: "bg-blue-100 text-blue-700",
+              ENDED: "bg-slate-100 text-slate-600",
+              CANCELLED: "bg-rose-100 text-rose-600",
+            };
+            return (
+              <div key={a.id} className="flex items-center justify-between bg-white rounded-xl p-3 shadow-sm border border-slate-100 gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-slate-700 flex items-center gap-1.5 flex-wrap">
+                    {a.item.title}
+                    <span className={`text-[10px] font-semibold rounded-full px-2 py-0.5 ${statusTone[a.status] ?? "bg-slate-100 text-slate-600"}`}>
+                      {AUCTION_STATUS_LABEL[a.status] ?? a.status}
+                    </span>
+                  </p>
+                  <p className="text-[11px] text-slate-400 truncate">
+                    Vendedor: {a.seller.name} ({a.seller.email}) · {a._count.bids} pujas
+                    {a.winner && <> · Ganador: {a.winner.name} ({a.winner.email})</>}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <p className="text-sm font-bold text-slate-700">${a.currentPrice}</p>
+                  {canCancel && (
+                    <button onClick={() => cancelAuction(a.id)} disabled={cancelAuctionBusyId === a.id}
+                      className="text-xs bg-slate-100 text-slate-600 font-semibold px-2.5 py-1.5 rounded-full hover:bg-slate-200 transition disabled:opacity-60">
+                      {cancelAuctionBusyId === a.id ? "..." : "Cancelar"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+          {auctions.length === 0 && <p className="text-sm text-slate-400 text-center py-8">Sin subastas todavía.</p>}
+        </div>
       )}
 
       {tab === "herramientas" && (
@@ -474,9 +613,9 @@ export default function AdminPage() {
               <input value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} placeholder="email@ejemplo.com"
                 className="border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-rose-300" />
               <div className="flex gap-2">
-                <input value={resetPassword} onChange={(e) => setResetPassword(e.target.value)} placeholder="Contraseña nueva (mín. 6)" type="text"
+                <input value={resetPassword} onChange={(e) => setResetPassword(e.target.value)} placeholder="Contraseña nueva (mín. 8)" type="text"
                   className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-rose-300" />
-                <button onClick={handleResetPassword} disabled={resetBusy || !resetEmail.trim() || resetPassword.length < 6}
+                <button onClick={handleResetPassword} disabled={resetBusy || !resetEmail.trim() || resetPassword.length < 8}
                   className="text-xs bg-slate-700 text-white font-semibold px-2.5 py-1.5 rounded-lg disabled:opacity-50">Resetear</button>
               </div>
             </div>
@@ -603,6 +742,7 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

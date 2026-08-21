@@ -7,12 +7,14 @@ if (!SECRET) throw new Error("JWT_SECRET env var is required");
 const COOKIE = "ropinder_token";
 
 export function signToken(userId: string) {
-  return jwt.sign({ sub: userId }, SECRET, { expiresIn: "30d" });
+  return jwt.sign({ sub: userId }, SECRET, { expiresIn: "30d", algorithm: "HS256" });
 }
 
 export function verifyToken(token: string): string | null {
   try {
-    const payload = jwt.verify(token, SECRET) as { sub: string };
+    // Pin the algorithm so a forged token can't switch to "none" or another
+    // alg the server would otherwise accept.
+    const payload = jwt.verify(token, SECRET, { algorithms: ["HS256"] }) as { sub: string };
     return payload.sub;
   } catch {
     return null;
@@ -36,7 +38,7 @@ export async function getSession() {
     address: true, crossStreets: true, postalCode: true,
     isPremium: true, premiumUntil: true, premiumPlan: true, credits: true, balance: true, latitude: true, longitude: true,
     role: true, bannedAt: true, ratingAvg: true, ratingCount: true,
-    verified: true, emailVerified: true,
+    verified: true, emailVerified: true, lastSeenAt: true,
   } as const;
 
   const user = await prisma.user.findUnique({ where: { id: userId }, select });
@@ -47,6 +49,13 @@ export async function getSession() {
   if (user.isPremium && user.premiumUntil && user.premiumUntil < new Date()) {
     await prisma.user.update({ where: { id: userId }, data: { isPremium: false } });
     user.isPremium = false;
+  }
+
+  // getSession() runs on nearly every request — throttle the "last seen"
+  // write to once every few minutes instead of once per request, and don't
+  // block the response on it.
+  if (!user.lastSeenAt || Date.now() - user.lastSeenAt.getTime() > 5 * 60 * 1000) {
+    prisma.user.update({ where: { id: userId }, data: { lastSeenAt: new Date() } }).catch(() => {});
   }
 
   return user;

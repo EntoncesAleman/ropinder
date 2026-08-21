@@ -1,17 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { notify } from "@/lib/notify";
+import { getSession } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
-  const body = await request.json();
-  const { userId, clothingItemId, type } = body as { userId: string; clothingItemId: string; type: "LIKE" | "DISLIKE" };
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
 
-  if (!userId || !clothingItemId || !type)
+  const body = await request.json();
+  const { clothingItemId, type } = body as { clothingItemId: string; type: "LIKE" | "DISLIKE" };
+  const userId = session.id;
+
+  if (!clothingItemId || !type)
     return NextResponse.json({ error: "Missing fields" }, { status: 400 });
 
+  // A cached session.credits check followed by a separate decrement later is
+  // a check-then-act race: two concurrent LIKEs can both read credits > 0
+  // before either write lands, pushing credits negative. Doing the guard and
+  // the spend as one conditional update means only one request can ever win.
   if (type === "LIKE") {
-    const swiper = await prisma.user.findUnique({ where: { id: userId }, select: { credits: true, isPremium: true } });
-    if (swiper && swiper.credits <= 0 && !swiper.isPremium)
+    const spent = await prisma.user.updateMany({
+      where: { id: userId, OR: [{ isPremium: true }, { credits: { gt: 0 } }] },
+      data: { credits: { decrement: 1 } },
+    });
+    if (spent.count === 0)
       return NextResponse.json({ error: "Sin créditos", code: "NO_CREDITS" }, { status: 402 });
   }
 
@@ -34,10 +46,7 @@ export async function POST(request: NextRequest) {
     where: { swiperId: ownerId, targetItemId: { in: currentUserItems.map((i) => i.id) }, type: "LIKE" },
   });
 
-  if (!ownerLike) {
-    await prisma.user.update({ where: { id: userId }, data: { credits: { decrement: 1 } } });
-    return NextResponse.json({ match: false });
-  }
+  if (!ownerLike) return NextResponse.json({ match: false });
 
   const existing = await prisma.match.findFirst({
     where: { OR: [{ userAId: userId, userBId: ownerId }, { userAId: ownerId, userBId: userId }] },
@@ -50,8 +59,6 @@ export async function POST(request: NextRequest) {
     const swiper = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
     await notify(ownerId, "MATCH", "¡Nuevo match!", `Hiciste match con ${swiper?.name ?? "alguien"}`, `/matches/${match.id}`);
   }
-
-  await prisma.user.update({ where: { id: userId }, data: { credits: { decrement: 1 } } });
 
   return NextResponse.json({ match: true, matchId, matchedWithUserId: ownerId });
 }

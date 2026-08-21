@@ -26,7 +26,7 @@ export default function NotificationsPage() {
 
   useEffect(() => {
     if (!loading && !user) { router.push("/login"); return; }
-    if (user) fetchNotifs();
+    if (user) Promise.resolve().then(() => fetchNotifs());
   }, [user, loading, router, fetchNotifs]);
 
   async function markRead(id: string) {

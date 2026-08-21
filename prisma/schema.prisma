@@ -35,6 +35,11 @@ model User {
   verified      Boolean @default(false)
   verifiedAt    DateTime?
   termsAcceptedAt DateTime?
+  // JSON string arrays — style/brand affinities picked during onboarding,
+  // used to bias feed ranking (never a hard filter).
+  stylePrefs    String   @default("[]")
+  brandPrefs    String   @default("[]")
+  lastSeenAt    DateTime?
   createdAt     DateTime @default(now())
 
   clothingItems    ClothingItem[]
@@ -51,6 +56,12 @@ model User {
   favorites        Favorite[]
   notifications    Notification[]
   pushTokens       PushToken[]
+  offersMade       Offer[]       @relation("OffersMade")
+  offersReceived   Offer[]       @relation("OffersReceived")
+  questionsAsked   Question[]
+  auctionsSelling  Auction[]     @relation("AuctionsSelling")
+  auctionsWon      Auction[]     @relation("AuctionsWon")
+  bids             Bid[]
 }
 
 model ClothingItem {
@@ -61,8 +72,13 @@ model ClothingItem {
   brand       String
   condition   String
   category    String   @default("Ropa")
+  style       String   @default("")
   imageUrl    String
   price       Float?
+  // VENTA | INTERCAMBIO | SUBASTA — un canje directo (Offer.offeredItemId)
+  // sigue siendo posible sobre cualquier ítem sin importar este campo.
+  listingType String   @default("VENTA")
+  viewCount   Int      @default(0)
   isBumped    Boolean  @default(false)
   bumpedAt    DateTime?
   isAd        Boolean  @default(false)
@@ -77,6 +93,47 @@ model ClothingItem {
   swipes      Swipe[]
   reports     Report[]
   favorites   Favorite[]
+  offers      Offer[]
+  offeredInTrades Offer[]  @relation("TradeOfferedItem")
+  questions   Question[]
+  auction     Auction?
+}
+
+// Server-authoritative: currentPrice/status/winnerId only ever change inside
+// /api/auctions routes, never trusted from the client. See bid route for the
+// concurrency-safe accept-highest-bid pattern.
+model Auction {
+  id            String    @id @default(cuid())
+  itemId        String    @unique
+  sellerId      String
+  startingPrice Float
+  minIncrement  Float
+  currentPrice  Float
+  startsAt      DateTime  @default(now())
+  endsAt        DateTime
+  status        String    @default("ACTIVE") // SCHEDULED | ACTIVE | ENDED | CANCELLED
+  winnerId      String?
+  createdAt     DateTime  @default(now())
+
+  item   ClothingItem @relation(fields: [itemId], references: [id])
+  seller User         @relation("AuctionsSelling", fields: [sellerId], references: [id])
+  winner User?        @relation("AuctionsWon", fields: [winnerId], references: [id])
+  bids   Bid[]
+
+  @@index([status, endsAt])
+}
+
+model Bid {
+  id        String   @id @default(cuid())
+  auctionId String
+  bidderId  String
+  amount    Float
+  createdAt DateTime @default(now())
+
+  auction Auction @relation(fields: [auctionId], references: [id])
+  bidder  User    @relation(fields: [bidderId], references: [id])
+
+  @@index([auctionId, amount])
 }
 
 model Swipe {
@@ -101,6 +158,7 @@ model Match {
   messages  Message[]
   reports   Report[]
   ratings   Rating[]
+  offers    Offer[]
 }
 
 model Message {
@@ -216,4 +274,59 @@ model BlockedEmail {
   reason    String   @default("")
   blockedBy String   @default("")
   createdAt DateTime @default(now())
+}
+
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  email     String
+  ip        String   @default("")
+  createdAt DateTime @default(now())
+
+  @@index([email, createdAt])
+  @@index([ip, createdAt])
+}
+
+// A buyer-proposed price on a specific listing, inside an existing match —
+// OR a barter proposal (offeredItemId set, amount 0) trading one of the
+// buyer's own items for the seller's. Only an ACCEPTED money offer's amount
+// may ever be paid — /api/matches/[id]/pay still refuses any client-supplied
+// amount for a priced item. A barter has no money to escrow, so an accepted
+// trade is closed out via completedAt instead (see /offers/[offerId]).
+model Offer {
+  id            String    @id @default(cuid())
+  matchId       String
+  itemId        String
+  buyerId       String
+  sellerId      String
+  amount        Float     @default(0)
+  offeredItemId String?
+  status        String    @default("PENDING") // PENDING | ACCEPTED | REJECTED | CANCELLED
+  createdAt     DateTime  @default(now())
+  respondedAt   DateTime?
+  completedAt   DateTime?
+
+  match       Match        @relation(fields: [matchId], references: [id])
+  item        ClothingItem @relation(fields: [itemId], references: [id])
+  buyer       User         @relation("OffersMade", fields: [buyerId], references: [id])
+  seller      User         @relation("OffersReceived", fields: [sellerId], references: [id])
+  offeredItem ClothingItem? @relation("TradeOfferedItem", fields: [offeredItemId], references: [id])
+
+  @@index([itemId, buyerId])
+}
+
+// Public Q&A on a listing — visible to anyone browsing, not just the asker,
+// same pattern as most resale marketplaces (reduces repeat DMs).
+model Question {
+  id         String    @id @default(cuid())
+  itemId     String
+  askerId    String
+  text       String
+  answer     String?
+  answeredAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  item  ClothingItem @relation(fields: [itemId], references: [id])
+  asker User         @relation(fields: [askerId], references: [id])
+
+  @@index([itemId, createdAt])
 }

@@ -30,7 +30,7 @@ export function AppNav() {
 
   if (!user) return null;
   const isAdmin = user.role === "ADMIN";
-  // /admin has its own complete right-hand nav (see app/admin/page.tsx) — the
+  // /admin has its own complete sidebar (see app/admin/layout.tsx) — the
   // desktop rail below would just be a second, mostly-empty nav sitting next
   // to it. Mobile keeps the bottom bar as the only admin nav on small screens.
   const isAdminRoute = pathname.startsWith("/admin");

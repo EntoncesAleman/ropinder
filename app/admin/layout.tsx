@@ -101,15 +101,15 @@ function Topbar({ collapsed, onToggleCollapse }: { collapsed: boolean; onToggleC
 function Sidebar({ collapsed }: { collapsed: boolean }) {
   const pathname = usePathname();
   return (
-    <aside className={`hidden lg:flex lg:flex-col lg:flex-shrink-0 border-l border-slate-200 bg-white lg:sticky lg:top-[49px] lg:h-[calc(100vh-49px)] lg:overflow-y-auto transition-all ${collapsed ? "lg:w-16" : "lg:w-56"}`}>
-      <div className={`flex items-center gap-2 px-4 py-4 border-b border-slate-100 ${collapsed ? "justify-center px-0" : ""}`}>
+    <aside className={`hidden lg:flex lg:flex-col lg:flex-shrink-0 border-r border-slate-200 bg-white lg:sticky lg:top-[49px] lg:h-[calc(100vh-49px)] lg:overflow-y-auto transition-all ${collapsed ? "lg:w-16" : "lg:w-60"}`}>
+      <div className={`flex items-center gap-2 px-4 py-4 border-b border-slate-200 ${collapsed ? "justify-center px-0" : ""}`}>
         <ShieldAlert size={18} className="text-rose-500 flex-shrink-0" />
         {!collapsed && <span className="font-bold text-slate-800 text-sm">Administración</span>}
       </div>
-      <div className="flex flex-col gap-3 px-2.5 py-3">
-        {ADMIN_NAV.map((group) => (
-          <div key={group.label} className="flex flex-col gap-0.5">
-            {!collapsed && <p className="px-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-0.5">{group.label}</p>}
+      <div className="flex flex-col py-1">
+        {ADMIN_NAV.map((group, i) => (
+          <div key={group.label} className={`flex flex-col gap-0.5 px-2.5 py-3 ${i > 0 ? "border-t border-slate-100" : ""}`}>
+            {!collapsed && <p className="px-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">{group.label}</p>}
             {group.items.map(({ href, label, icon: Icon }) => {
               const active = href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
               return (
@@ -157,7 +157,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <BreadcrumbProvider>
       <div className="lg:min-h-screen flex flex-col bg-slate-50">
         <Topbar collapsed={hydrated && collapsed} onToggleCollapse={toggleCollapse} />
-        <div className="flex-1 lg:flex lg:flex-row-reverse lg:items-start">
+        <div className="flex-1 lg:flex lg:items-start">
           <Sidebar collapsed={hydrated && collapsed} />
           <main className="flex-1 min-w-0 px-4 py-5 lg:px-8 lg:py-6">
             <div className="lg:hidden flex items-center gap-1 bg-white border border-slate-200 rounded-md p-1 mb-4 overflow-x-auto">

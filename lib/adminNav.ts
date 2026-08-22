@@ -44,8 +44,19 @@ export const ADMIN_NAV_FLAT: AdminNavItem[] = ADMIN_NAV.flatMap((g) => g.items);
 
 // Breadcrumb label for a pathname — matches the longest known prefix, falls
 // back to a readable guess for dynamic segments (e.g. /admin/usuarios/xyz).
+// /admin/users/[id] is a special case: the detail route lives at a
+// different path than its list page (/admin/usuarios), so it can't be
+// found by prefix match against ADMIN_NAV_FLAT.
 export function adminBreadcrumb(pathname: string): { label: string; href: string }[] {
   if (pathname === "/admin") return [{ label: "Dashboard", href: "/admin" }];
+
+  if (pathname.startsWith("/admin/users/")) {
+    return [
+      { label: "Dashboard", href: "/admin" },
+      { label: "Usuarios", href: "/admin/usuarios" },
+      { label: "Detalle", href: pathname },
+    ];
+  }
 
   const known = ADMIN_NAV_FLAT.find((i) => i.href !== "/admin" && pathname.startsWith(i.href));
   const crumbs: { label: string; href: string }[] = [{ label: "Dashboard", href: "/admin" }];

@@ -4,13 +4,10 @@ import { haversineKm } from "@/lib/haversine";
 import { getSession } from "@/lib/auth";
 import { FREE_LISTING_LIFETIME_DAYS } from "@/lib/limits";
 import { STYLES } from "@/lib/catalog";
+import { clampRadiusKm, PREMIUM_MAX_RADIUS_KM } from "@/lib/searchRadius";
 
 const VALID_STYLE_IDS = new Set(STYLES.map((s) => s.id));
 const DISTANCE_BUCKET_KM = 5;
-
-// Matches the largest option on the client's DistanceSlider — ads still
-// respect radius, just always at the widest one available.
-const MAX_RADIUS_KM = 50;
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -19,7 +16,10 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const lat = parseFloat(searchParams.get("lat") ?? "0");
   const lng = parseFloat(searchParams.get("lng") ?? "0");
-  const radius = parseFloat(searchParams.get("radius") ?? "10");
+  // Clamped server-side by plan — the client UI already hides radii above
+  // what this user's plan allows, but that's not enforcement (see
+  // lib/searchRadius.ts).
+  const radius = clampRadiusKm(parseFloat(searchParams.get("radius") ?? "10"), session.isPremium);
   // Derived from the session, never trusted from the query string — otherwise
   // any caller could pass another user's id to view their personalized feed
   // and infer that user's swipe history from which items get excluded.
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
   });
 
   // Sponsored (annual Premium) items still respect radius, but always at the widest setting.
-  const ads = withDistance.filter((item) => item.isAd && item.distance <= MAX_RADIUS_KM);
+  const ads = withDistance.filter((item) => item.isAd && item.distance <= PREMIUM_MAX_RADIUS_KM);
   // Distance still dominates (this is a proximity feed), but within the same
   // ~5km band, items matching the user's style/brand picks from onboarding
   // surface first — a nudge, never a hard filter.

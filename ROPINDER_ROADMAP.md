@@ -44,6 +44,19 @@ Auditado contra `ROPINDER_BIBLE/LOOPS/05-UX-UI-PWA.md` con greps reales, no memo
 
 **No hecho todavía**: auditoría de contraste de color, navegación completa por teclado (tab order, trampas de foco en modales/drawers), un archivo de design tokens formal para la app de consumidor (hoy son clases de Tailwind repetidas por pantalla, no un sistema con nombre — el admin sí tiene `components/admin/ui.tsx` como token layer, la app de consumidor no tiene su equivalente). Se documenta como pendiente, no se inventó un sistema de diseño nuevo sin evidencia de que haga falta.
 
+## Ciclo 4 — Loop 02 (Marketplace), auditoría + radio por plan
+
+Auditado contra `ROPINDER_BIBLE/LOOPS/02-MARKETPLACE.md`:
+
+| Ítem | Hallazgo |
+|---|---|
+| Venta/Intercambio/Subasta, favoritos, búsqueda | REAL — confirmado en el audit original |
+| Radio de búsqueda | **Gap real, corregido**: ya existían tiers (1/5/20/50km, `DistanceSlider`) — no era "un solo radio hardcodeado" como asume la Bible — pero cualquier usuario, gratis o Premium, podía llegar a 50km, y el servidor (`/api/clothes`) confiaba ciegamente en el `radius` que mandaba el cliente. Ahora: gratis tope 20km, Premium tope 50km, **clampeado server-side** (`lib/searchRadius.ts`, testeado) — el cliente ya no es la única barrera. |
+| Publicación de persona: una sola foto | **Gap real, no corregido este ciclo**: `ClothingItem.imageUrl` es un string único, no un array — no hay multi-foto ni video. Corregirlo bien implica modelo nuevo (`ClothingItemPhoto[]` o campo array), UI de carga múltiple, reordenar, y migrar publicaciones existentes sin romper nada — alcance propio, no una pasada rápida. |
+| Canje con diferencia de dinero (`Offer`: producto + diferencia ↔ producto) | **Gap real, no corregido este ciclo**: `Offer` fuerza `amount: 0` cuando `offeredItemId` está seteado — es o trueque puro o dinero puro, nunca ambos. El schema ya soportaría los dos campos juntos, pero la diferencia de dinero necesitaría entrar al mismo circuito de escrow/comisión que una venta normal para no ser plata fantasma — es un cambio de flujo de pago, no solo de validación, y este ciclo ya tocó bastante dinero (comisiones) como para apurar otro sin una pasada dedicada. |
+| Tienda como publicador separado | NO EXISTE — mismo hallazgo que la auditoría original, sigue bloqueado por decisión de producto |
+| `Operation` unificada | NO EXISTE — mismo hallazgo que la auditoría original |
+
 ## Backlog priorizado (ciclos futuros)
 
 | Ítem | Bloqueado por | Motivo |
@@ -52,6 +65,8 @@ Auditado contra `ROPINDER_BIBLE/LOOPS/05-UX-UI-PWA.md` con greps reales, no memo
 | Wallet formal (`Wallet` como modelo con `pending/locked/withdrawable_balance` explícitos) | — | Hoy esos valores se derivan calculando sobre `Transaction` en cada request (correcto, pero no está modelado). Vale la pena solo si el volumen de transacciones lo justifica — con 10 usuarios reales, el cálculo on-the-fly es más simple y no es un cuello de botella. |
 | Pago combinado (saldo + externo) + beneficio de saldo (Fases 12-13) | Wallet formal + gateway real + arreglar que hoy el comprador no paga nada (ver `ROPINDER_AUDIT.md`) | Necesita las tres piezas anteriores para no ser una demo sin backend. |
 | Cuentas Tienda (Fases 2-4, 37, Loop 02) | Decisión de producto | Requiere definir qué datos/verificación/catálogo distingue a una tienda de una persona vendiendo mucho — no es solo un campo `accountType`, cambia signup, perfil, analytics y admin. |
+| Multi-foto / video por publicación (Loop 02) | — | `ClothingItem.imageUrl` es un campo único hoy. Necesita modelo nuevo + UI de carga múltiple + migración de publicaciones existentes. |
+| Canje con diferencia de dinero (Loop 02) | Mismo prerequisito que pago combinado | `Offer` ya tiene los dos campos (`amount`, `offeredItemId`) pero se usan de forma excluyente. Habilitarlos juntos implica que la diferencia entre al circuito de escrow/comisión, no solo relajar una validación. |
 | Operations unificado + Centro de disputas (Fases 24-27, 39) | Wallet + volumen real | Hoy `Report` ya dispara reembolsos puntuales; un sistema de disputas completo (evidencia, tracking, escalamiento) tiene sentido cuando haya casos reales que lo justifiquen — con 0 disputas hasta ahora, construirlo sería UI sin casos de uso reales detrás. |
 | Admin Wallet dedicado (Fase 34) | — | Evaluado y **descartado por ahora**: `/admin/usuarios` (saldo por usuario) + `/admin/transacciones` (ledger completo, todos los tipos, filtrable) + Herramientas (ajustes auditados, nunca edición directa) ya cubren lo que pide la fase. Una página nueva sería duplicar, no agregar. Se reabre si el admin real reporta que algo específico le falta ahí. |
 | Roles granulares (Moderador/Soporte/Finance/Analyst) | — | Ya documentado como pendiente en `ADMIN_ROADMAP.md` desde el ciclo del backoffice — requiere modelo de permisos nuevo, no una casilla de UI. |

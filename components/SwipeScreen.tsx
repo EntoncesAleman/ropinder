@@ -147,7 +147,7 @@ export function SwipeScreen() {
       </form>
 
       <div className="w-full max-w-sm lg:max-w-6xl px-4 lg:px-8 mb-3">
-        <DistanceSlider value={radius} onChange={(v) => setRadius(v)} />
+        <DistanceSlider value={radius} onChange={(v) => setRadius(v)} isPremium={!!user?.isPremium} />
       </div>
 
       {noCredits && (

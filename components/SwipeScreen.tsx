@@ -21,11 +21,11 @@ function DesktopGridCard({ item, onSwipe }: { item: ClothingItemWithDistance; on
           <span className="absolute top-2 left-2 text-[10px] font-semibold bg-violet-500 text-white rounded-full px-2 py-0.5">Publicidad</span>
         )}
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition flex items-end justify-center gap-3 pb-3 opacity-0 group-hover:opacity-100">
-          <button onClick={() => onSwipe(item.id, "DISLIKE")}
+          <button onClick={() => onSwipe(item.id, "DISLIKE")} aria-label="No me interesa"
             className="w-11 h-11 rounded-full bg-white shadow-lg flex items-center justify-center text-slate-500 hover:text-rose-400 transition-transform hover:scale-110">
             <X size={20} />
           </button>
-          <button onClick={() => onSwipe(item.id, "LIKE")}
+          <button onClick={() => onSwipe(item.id, "LIKE")} aria-label="Me gusta"
             className="w-11 h-11 rounded-full bg-rose-500 shadow-lg flex items-center justify-center text-white hover:bg-rose-600 transition-transform hover:scale-110">
             <Heart size={20} fill="white" />
           </button>
@@ -190,11 +190,11 @@ export function SwipeScreen() {
 
       {!loading && !geoLoading && items.length > 0 && (
         <div className="lg:hidden flex gap-8 mt-5">
-          <button onClick={() => handleButton("DISLIKE")}
+          <button onClick={() => handleButton("DISLIKE")} aria-label="No me interesa"
             className="w-14 h-14 rounded-full bg-white shadow-lg flex items-center justify-center text-slate-400 hover:text-rose-400 transition-all hover:scale-110 border border-slate-100">
             <X size={26} />
           </button>
-          <button onClick={() => handleButton("LIKE")}
+          <button onClick={() => handleButton("LIKE")} aria-label="Me gusta"
             className="w-14 h-14 rounded-full bg-rose-500 shadow-lg flex items-center justify-center text-white hover:bg-rose-600 transition-all hover:scale-110">
             <Heart size={26} fill="white" />
           </button>

@@ -117,7 +117,7 @@ export default function ItemDetailPage({ params }: { params: Promise<{ id: strin
     <div className="max-w-sm lg:max-w-5xl mx-auto pb-8 lg:pt-6 lg:px-8 lg:grid lg:grid-cols-2 lg:gap-10 lg:items-start">
       <div className="relative w-full aspect-square lg:rounded-2xl lg:overflow-hidden lg:sticky lg:top-6">
         <Image src={item.imageUrl} alt={item.title} fill sizes="(max-width: 1024px) 384px, 480px" priority className="object-cover" />
-        <Link href="/" className="absolute top-4 left-4 bg-white/90 rounded-full p-2 shadow lg:hidden">
+        <Link href="/" aria-label="Volver" className="absolute top-4 left-4 bg-white/90 rounded-full p-2 shadow lg:hidden">
           <ArrowLeft size={18} className="text-slate-700" />
         </Link>
         <span className="absolute bottom-3 right-3 flex items-center gap-1 text-[11px] font-medium bg-black/60 text-white rounded-full px-2.5 py-1">

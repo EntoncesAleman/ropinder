@@ -25,7 +25,7 @@ export function NotificationBell() {
   if (!user || pathname.startsWith("/admin")) return null;
 
   return (
-    <Link href="/notifications" className="fixed top-4 right-4 z-40 w-10 h-10 rounded-full bg-white shadow-lg border border-slate-100 flex items-center justify-center text-slate-500 hover:text-rose-500 transition">
+    <Link href="/notifications" aria-label={unread > 0 ? `Notificaciones (${unread} sin leer)` : "Notificaciones"} className="fixed top-4 right-4 z-40 w-10 h-10 rounded-full bg-white shadow-lg border border-slate-100 flex items-center justify-center text-slate-500 hover:text-rose-500 transition">
       <Bell size={18} />
       {unread > 0 && (
         <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center">

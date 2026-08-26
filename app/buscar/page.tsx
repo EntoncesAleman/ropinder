@@ -142,7 +142,7 @@ export default function BuscarPage() {
 
       <div className="lg:flex-1 lg:min-w-0">
         <div className="flex items-center gap-3 px-4 lg:px-0 pt-6 lg:pt-0 pb-3">
-          <Link href="/" className="text-slate-400 hover:text-slate-600 lg:hidden"><ArrowLeft size={20} /></Link>
+          <Link href="/" aria-label="Volver" className="text-slate-400 hover:text-slate-600 lg:hidden"><ArrowLeft size={20} /></Link>
           <h1 className="text-xl font-bold text-slate-800">Buscar</h1>
         </div>
 

@@ -111,7 +111,7 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
     <div className="max-w-sm lg:max-w-5xl mx-auto pb-8 lg:pt-6 lg:px-8 lg:grid lg:grid-cols-2 lg:gap-10 lg:items-start">
       <div className="relative w-full aspect-square lg:rounded-2xl lg:overflow-hidden lg:sticky lg:top-6">
         <Image src={auction.item.imageUrl} alt={auction.item.title} fill sizes="(max-width: 1024px) 384px, 480px" priority className="object-cover" />
-        <Link href="/subastas" className="absolute top-4 left-4 bg-white/90 rounded-full p-2 shadow lg:hidden">
+        <Link href="/subastas" aria-label="Volver" className="absolute top-4 left-4 bg-white/90 rounded-full p-2 shadow lg:hidden">
           <ArrowLeft size={18} className="text-slate-700" />
         </Link>
         <span className="absolute top-4 right-4 flex items-center gap-1 text-[11px] font-semibold bg-amber-500 text-white rounded-full px-2.5 py-1">

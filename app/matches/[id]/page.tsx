@@ -228,7 +228,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
   return (
     <div className="flex flex-col h-screen max-w-sm lg:max-w-2xl mx-auto lg:border-x lg:border-slate-100">
       <div className="flex items-center gap-3 px-4 py-3 bg-white border-b border-slate-100 shadow-sm">
-        <Link href="/matches" className="text-slate-400 hover:text-slate-600">
+        <Link href="/matches" aria-label="Volver" className="text-slate-400 hover:text-slate-600">
           <ArrowLeft size={20} />
         </Link>
         <Link href={`/seller/${other.id}`} className="flex items-center gap-3 flex-1 min-w-0">
@@ -243,6 +243,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
           disabled={reportSent}
           className="text-slate-300 hover:text-rose-500 transition p-1 disabled:opacity-40"
           title="Reportar"
+          aria-label="Reportar"
         >
           <Flag size={16} />
         </button>
@@ -543,7 +544,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
                 ) : (
                   <div className="flex flex-col gap-1.5">
                     <div className="flex items-center gap-2">
-                      <button onClick={() => setActiveQuestion(null)} className="text-slate-400 hover:text-slate-600"><ArrowLeft size={13} /></button>
+                      <button onClick={() => setActiveQuestion(null)} aria-label="Volver a las categorías" className="text-slate-400 hover:text-slate-600"><ArrowLeft size={13} /></button>
                       <p className="text-xs font-medium text-slate-600">{activeQuestion.text}</p>
                     </div>
                     <div className="flex flex-wrap gap-1.5">

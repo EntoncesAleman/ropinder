@@ -281,7 +281,7 @@ export default function AdminUserDetailPage({ params }: { params: Promise<{ id: 
             </div>
             <div>
               <p className="text-base font-bold text-slate-800 tabular-nums">${u.balance.toFixed(0)}</p>
-              <p className="text-[10px] text-slate-400">Monedero</p>
+              <p className="text-[10px] text-slate-400">Ropinder Cash</p>
             </div>
             <div>
               <p className="text-base font-bold text-slate-800 tabular-nums">{matchesCount}</p>

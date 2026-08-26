@@ -46,3 +46,16 @@ test("calculateWithdrawal: entries without availableAt are ignored", () => {
   const result = calculateWithdrawal([{ amount: 50, availableAt: null }], new Date());
   assert.deepEqual(result, { gross: 0, fee: 0, net: 0 });
 });
+
+test("calculateWithdrawal: an explicit feeRate overrides the default constant", () => {
+  const now = new Date("2026-01-01T10:00:00Z");
+  const matured = [{ amount: 100, availableAt: now }]; // still inside the fee window
+  const result = calculateWithdrawal(matured, now, 0.10);
+  assert.equal(result.fee, 10);
+  assert.equal(result.net, 90);
+});
+
+test("withdrawableAfterFee: an explicit feeRate overrides the default constant", () => {
+  const result = withdrawableAfterFee(100, 50, 0.10);
+  assert.equal(result, 50 + 100 * 0.9);
+});

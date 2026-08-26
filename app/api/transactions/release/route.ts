@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { getConfigNumber, CONFIG_KEYS } from "@/lib/config";
+import { DEFAULT_COMMISSION_STANDARD, DEFAULT_COMMISSION_PREMIUM, resolveCommissionRate, splitGrossCommission } from "@/lib/commission";
 
 const WITHDRAWAL_HOLD_HOURS = 48;
-const PLATFORM_COMMISSION_RATE = 0.08;
-const PREMIUM_COMMISSION_RATE = 0.05;
 
 export async function POST(req: NextRequest) {
   const session = await getSession();
@@ -28,12 +28,15 @@ export async function POST(req: NextRequest) {
   if (meta.buyerId !== session.id)
     return NextResponse.json({ error: "Solo quien pagó puede confirmar la recepción" }, { status: 403 });
 
-  const seller = await prisma.user.findUnique({ where: { id: meta.sellerId }, select: { isPremium: true } });
-  const commissionRate = seller?.isPremium ? PREMIUM_COMMISSION_RATE : PLATFORM_COMMISSION_RATE;
+  const [seller, standardRate, premiumRate] = await Promise.all([
+    prisma.user.findUnique({ where: { id: meta.sellerId }, select: { isPremium: true } }),
+    getConfigNumber(CONFIG_KEYS.commissionStandard, DEFAULT_COMMISSION_STANDARD),
+    getConfigNumber(CONFIG_KEYS.commissionPremium, DEFAULT_COMMISSION_PREMIUM),
+  ]);
+  const commissionRate = resolveCommissionRate(!!seller?.isPremium, standardRate, premiumRate);
 
   const availableAt = new Date(Date.now() + WITHDRAWAL_HOLD_HOURS * 60 * 60 * 1000);
-  const commission = tx.amount * commissionRate;
-  const netAmount = tx.amount - commission;
+  const { commission, netAmount } = splitGrossCommission(tx.amount, commissionRate);
 
   await prisma.transaction.update({ where: { id: tx.id }, data: { status: "COMPLETED" } });
 

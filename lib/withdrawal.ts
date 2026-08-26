@@ -25,19 +25,22 @@ export function splitByFeeWindow(matured: MaturedFunds[], now: Date) {
   return { withFeeAmount, noFeeAmount };
 }
 
-export function withdrawableAfterFee(withFeeAmount: number, noFeeAmount: number): number {
-  return noFeeAmount + withFeeAmount * (1 - WITHDRAWAL_FEE_RATE);
+// feeRate defaults to WITHDRAWAL_FEE_RATE so existing callers/tests are
+// unaffected; API routes pass the admin-configurable rate explicitly
+// (see lib/config.ts).
+export function withdrawableAfterFee(withFeeAmount: number, noFeeAmount: number, feeRate: number = WITHDRAWAL_FEE_RATE): number {
+  return noFeeAmount + withFeeAmount * (1 - feeRate);
 }
 
 // Same split, expressed as gross/fee/net for the actual withdrawal request
 // (as opposed to the GET preview above, which keeps with/no-fee separate).
-export function calculateWithdrawal(matured: MaturedFunds[], now: Date) {
+export function calculateWithdrawal(matured: MaturedFunds[], now: Date, feeRate: number = WITHDRAWAL_FEE_RATE) {
   let gross = 0;
   let fee = 0;
   for (const t of matured) {
     if (!t.availableAt) continue;
     gross += t.amount;
-    if (now < feeFreeAt(t.availableAt)) fee += t.amount * WITHDRAWAL_FEE_RATE;
+    if (now < feeFreeAt(t.availableAt)) fee += t.amount * feeRate;
   }
   return { gross, fee, net: gross - fee };
 }

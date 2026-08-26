@@ -118,7 +118,7 @@ export default function RoperoPage() {
           <DollarSign size={22} className="text-emerald-500" />
           <div>
             <p className="text-2xl font-extrabold text-emerald-700">${user.balance.toFixed(2)}</p>
-            <p className="text-xs text-emerald-600">Monedero</p>
+            <p className="text-xs text-emerald-600">Ropinder Cash</p>
           </div>
         </div>
       </div>

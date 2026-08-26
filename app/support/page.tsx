@@ -22,7 +22,7 @@ const TOPICS: Topic[] = [
   {
     id: "retiro",
     label: "¿Cómo retiro mi plata?",
-    answer: "Desde tu perfil, en la sección de saldo. El dinero recién liberado tiene una espera de 48hs; entre las 48hs y 72hs se puede retirar con un pequeño cargo, y después de 72hs no tiene cargo.",
+    answer: "Desde tu Ropero, en la sección de Ropinder Cash. El dinero recién liberado tiene una espera de 48hs; entre las 48hs y 72hs se puede retirar con un pequeño cargo, y después de 72hs no tiene cargo.",
   },
   {
     id: "premium",

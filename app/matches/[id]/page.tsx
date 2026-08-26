@@ -2,7 +2,7 @@
 import { useEffect, useState, useRef, use } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, ArrowLeft, PackageCheck, CheckCircle, Flag, ShieldCheck, Star, Truck, Users } from "lucide-react";
+import { Send, ArrowLeft, PackageCheck, CheckCircle, Flag, ShieldCheck, Star, Truck, Users, MessageCircleQuestion, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import Image from "next/image";
 import Link from "next/link";
@@ -25,6 +25,9 @@ interface ChatData {
   myRating: MyRating | null;
   offers: Offer[];
 }
+interface ChatAnswerOption { id: string; text: string }
+interface ChatQuestionOption { id: string; text: string; answers: ChatAnswerOption[] }
+interface ChatCategoryOption { id: string; label: string; questions: ChatQuestionOption[] }
 
 export default function ChatPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -54,6 +57,10 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
   const [reportSent, setReportSent] = useState(false);
   const [ratingScore, setRatingScore] = useState(0);
   const [ratingSaving, setRatingSaving] = useState(false);
+  const [chatBank, setChatBank] = useState<ChatCategoryOption[]>([]);
+  const [showQuickReplies, setShowQuickReplies] = useState(false);
+  const [activeQuestion, setActiveQuestion] = useState<ChatQuestionOption | null>(null);
+  const [sendingGuided, setSendingGuided] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   async function fetchChat() {
@@ -71,7 +78,10 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
 
   useEffect(() => {
     if (!loading && !user) { router.push("/login"); return; }
-    if (user) Promise.resolve().then(() => fetchChat());
+    if (user) {
+      Promise.resolve().then(() => fetchChat());
+      fetch("/api/chat/questions").then((r) => (r.ok ? r.json() : [])).then(setChatBank);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, loading]);
 
@@ -101,6 +111,15 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
     setText("");
     await fetchChat();
     setSending(false);
+  }
+
+  async function handleSendGuided(answerId: string) {
+    setSendingGuided(true);
+    const res = await fetch(`/api/matches/${id}/guided`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ answerId }),
+    });
+    if (res.ok) { await fetchChat(); setShowQuickReplies(false); setActiveQuestion(null); }
+    setSendingGuided(false);
   }
 
   async function handlePay(amount: number) {
@@ -501,6 +520,47 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
       </div>
 
       {sendError && <p className="text-rose-500 text-xs text-center px-4 pt-2">{sendError}</p>}
+
+      {!released && !completedTrade && chatBank.length > 0 && (
+        <div className="border-t border-slate-100 bg-white">
+          <button type="button" onClick={() => { setShowQuickReplies((v) => !v); setActiveQuestion(null); }}
+            className="w-full flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-slate-500 hover:text-rose-500 transition">
+            <MessageCircleQuestion size={14} /> Preguntas rápidas {showQuickReplies ? <X size={12} className="ml-auto" /> : null}
+          </button>
+          <AnimatePresence>
+            {showQuickReplies && (
+              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                className="px-4 pb-3 flex flex-col gap-2 overflow-hidden">
+                {!activeQuestion ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {chatBank.flatMap((c) => c.questions).map((q) => (
+                      <button key={q.id} onClick={() => setActiveQuestion(q)}
+                        className="text-xs border border-slate-200 text-slate-600 rounded-full px-3 py-1.5 hover:bg-slate-50 transition">
+                        {q.text}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => setActiveQuestion(null)} className="text-slate-400 hover:text-slate-600"><ArrowLeft size={13} /></button>
+                      <p className="text-xs font-medium text-slate-600">{activeQuestion.text}</p>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {activeQuestion.answers.map((a) => (
+                        <button key={a.id} onClick={() => handleSendGuided(a.id)} disabled={sendingGuided}
+                          className="text-xs bg-rose-50 text-rose-600 rounded-full px-3 py-1.5 hover:bg-rose-100 transition disabled:opacity-50">
+                          {a.text}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
 
       <form onSubmit={handleSend} className="flex items-center gap-2 px-4 py-3 bg-white border-t border-slate-100">
         <input

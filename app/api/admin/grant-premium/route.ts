@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { logAdminAction } from "@/lib/auditLog";
 
 export async function POST(req: NextRequest) {
   const admin = await requireAdmin();
@@ -32,6 +33,8 @@ export async function POST(req: NextRequest) {
       meta: JSON.stringify({ days: d, grantedBy: admin.email }),
     },
   });
+
+  logAdminAction(admin.id, "PREMIUM_GRANTED", "User", target.id, { email: user.email, days: d, verified: !!verified }).catch(() => {});
 
   return NextResponse.json({ ok: true, user });
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { logAdminAction } from "@/lib/auditLog";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin();
@@ -17,6 +18,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     data: { bannedAt: banned ? new Date() : null },
     select: { id: true, name: true, email: true, bannedAt: true },
   });
+
+  logAdminAction(admin.id, banned ? "USER_BANNED" : "USER_UNBANNED", "User", id, { email: user.email }).catch(() => {});
 
   return NextResponse.json(user);
 }

@@ -7,17 +7,23 @@ import { useAuth } from "@/contexts/AuthContext";
 import { PaymentMethodModal } from "@/components/PaymentMethodModal";
 
 const CREDIT_PACKS = [
-  { id: "credits_10", label: "10 créditos", price: "$2.500", desc: "Pack básico", color: "from-blue-400 to-cyan-400" },
-  { id: "credits_30", label: "30 créditos", price: "$6.000", desc: "Pack popular", color: "from-violet-500 to-purple-500", popular: true },
-  { id: "credits_100", label: "100 créditos", price: "$15.000", desc: "Mejor valor", color: "from-emerald-500 to-teal-500" },
+  { id: "credits_10", label: "10 créditos", desc: "Pack básico", color: "from-blue-400 to-cyan-400" },
+  { id: "credits_30", label: "30 créditos", desc: "Pack popular", color: "from-violet-500 to-purple-500", popular: true },
+  { id: "credits_100", label: "100 créditos", desc: "Mejor valor", color: "from-emerald-500 to-teal-500" },
 ];
 
 const PREMIUM_PLANS = [
-  { id: "premium_daily", label: "1 día", price: "$1.500", desc: "Para probar" },
-  { id: "premium_weekly", label: "1 semana", price: "$4.500", desc: "Uso puntual" },
-  { id: "premium_monthly", label: "1 mes", price: "$7.999", desc: "Incluye insignia verificada", popular: true },
-  { id: "premium_yearly", label: "1 año", price: "$69.999", desc: "Incluye insignia verificada · ahorrás vs. 12 meses" },
+  { id: "premium_daily", label: "1 día", desc: "Para probar" },
+  { id: "premium_weekly", label: "1 semana", desc: "Uso puntual" },
+  { id: "premium_monthly", label: "1 mes", desc: "Incluye insignia verificada", popular: true },
+  { id: "premium_yearly", label: "1 año", desc: "Incluye insignia verificada · ahorrás vs. 12 meses" },
 ];
+
+// Prices always come from /api/pricing (backed by admin-editable Config), never
+// hardcoded here — this page must show exactly what /api/checkout will charge.
+function fmtPrice(n: number | undefined): string {
+  return n === undefined ? "..." : `$${n.toLocaleString("es-AR")}`;
+}
 
 const PREMIUM_FEATURES = [
   "Swipes ilimitados",
@@ -33,10 +39,17 @@ export default function PremiumPage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [modalPack, setModalPack] = useState<{ id: string; label: string; price: string } | null>(null);
   const [pendingNotice, setPendingNotice] = useState(false);
+  const [prices, setPrices] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (user?.role === "ADMIN") router.push("/admin");
   }, [user, router]);
+
+  useEffect(() => {
+    fetch("/api/pricing").then((res) => res.ok ? res.json() : null).then((data) => {
+      if (data) setPrices(Object.fromEntries(Object.entries(data).map(([id, p]) => [id, (p as { price: number }).price])));
+    });
+  }, []);
 
   function openBuy(packId: string, label: string, price: string) {
     if (!user) { router.push("/login"); return; }
@@ -106,7 +119,7 @@ export default function PremiumPage() {
                 <div className="absolute -top-2 left-2 bg-amber-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full">Popular</div>
               )}
               <p className="text-xs font-bold text-slate-800">{plan.label}</p>
-              <p className="text-sm font-extrabold text-slate-700">{plan.price}</p>
+              <p className="text-sm font-extrabold text-slate-700">{fmtPrice(prices[plan.id])}</p>
               <p className="text-[10px] text-slate-400 mb-2 leading-tight">{plan.desc}</p>
               <AnimatePresence mode="wait">
                 {success === plan.id ? (
@@ -114,7 +127,7 @@ export default function PremiumPage() {
                     <CheckCircle size={16} className="text-emerald-500" />
                   </motion.div>
                 ) : (
-                  <motion.button key="btn" onClick={() => openBuy(plan.id, plan.label, plan.price)} disabled={loading && selected === plan.id}
+                  <motion.button key="btn" onClick={() => openBuy(plan.id, plan.label, fmtPrice(prices[plan.id]))} disabled={loading && selected === plan.id}
                     className="w-full text-white text-[11px] font-semibold py-1.5 rounded-lg bg-gradient-to-r from-amber-400 to-orange-500 hover:opacity-90 transition disabled:opacity-60">
                     {loading && selected === plan.id ? "..." : "Elegir"}
                   </motion.button>
@@ -137,8 +150,8 @@ export default function PremiumPage() {
               <p className="text-xs text-slate-400 mt-0.5">Generá más confianza al vender</p>
             </div>
             <div className="flex flex-col items-end gap-2">
-              <span className="font-bold text-slate-700 text-sm">$3.500</span>
-              <button onClick={() => openBuy("verified_badge", "Insignia verificada", "$3.500")} disabled={loading && selected === "verified_badge"}
+              <span className="font-bold text-slate-700 text-sm">{fmtPrice(prices.verified_badge)}</span>
+              <button onClick={() => openBuy("verified_badge", "Insignia verificada", fmtPrice(prices.verified_badge))} disabled={loading && selected === "verified_badge"}
                 className="flex items-center gap-1.5 text-white text-xs font-semibold px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-400 to-cyan-500 hover:opacity-90 transition disabled:opacity-60">
                 <CreditCard size={13} /> {loading && selected === "verified_badge" ? "..." : "Comprar"}
               </button>
@@ -164,14 +177,14 @@ export default function PremiumPage() {
                 <p className="text-xs text-slate-400 mt-0.5">{pack.desc}</p>
               </div>
               <div className="flex flex-col items-end gap-2">
-                <span className="font-bold text-slate-700 text-sm">{pack.price}</span>
+                <span className="font-bold text-slate-700 text-sm">{fmtPrice(prices[pack.id])}</span>
                 <AnimatePresence mode="wait">
                   {success === pack.id ? (
                     <motion.div key="success" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
                       <CheckCircle size={22} className="text-emerald-500" />
                     </motion.div>
                   ) : (
-                    <motion.button key="btn" onClick={() => openBuy(pack.id, pack.label, pack.price)} disabled={loading && selected === pack.id}
+                    <motion.button key="btn" onClick={() => openBuy(pack.id, pack.label, fmtPrice(prices[pack.id]))} disabled={loading && selected === pack.id}
                       className={`flex items-center gap-1.5 text-white text-xs font-semibold px-3 py-1.5 rounded-xl bg-gradient-to-r ${pack.color} hover:opacity-90 transition disabled:opacity-60`}>
                       <CreditCard size={13} /> {loading && selected === pack.id ? "..." : "Comprar"}
                     </motion.button>

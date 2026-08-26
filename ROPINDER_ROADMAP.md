@@ -68,6 +68,16 @@ Instrucción explícita: "sacar mercado pago de la ecuación y seguir lo que dic
 - Sin cambios de schema — todo lo nuevo vive en los campos `meta` (JSON) que ya existían, no hizo falta sync a Turso.
 - Tests nuevos (`tests/financialProvider.test.ts`).
 
+## Ciclo 6 — Loop 03 (Admin), Audit Log + Precios configurables
+
+Instrucción explícita: "hacer loop 3 y pasos de 8=11". Loop 03 (`ROPINDER_BIBLE/LOOPS/03-ADMIN.md`) pide, entre otras cosas, registrar acciones sensibles de admin ("Record sensitive actions") y planes editables sin redeploy.
+
+- **Audit log**: modelo `AdminAuditLog` (append-only, mismo criterio que el ledger financiero: ninguna ruta lo edita ni borra) + `lib/auditLog.ts`'s `logAdminAction(adminId, action, targetType, targetId, meta)`, llamado siempre fire-and-forget (`.catch(() => {})`) para que un fallo de logging nunca bloquee ni deshaga la acción real. Cableado en las 12 rutas admin que ya movían dinero, roles o acceso: ban/unban, delete de usuario, promote/demote, blacklist de email, grant-premium, grant-credits, reset-password, editar comisiones, aprobar/rechazar transacción (transferencia o retiro), refund de reporte, y promo masivo/rifa de créditos. `GET /api/admin/logs` + `/admin/logs` (nueva entrada de nav en "Sistema") lo hacen legible: últimas 300 acciones, buscable por admin/acción/target, sin paginación todavía (alcanza para el volumen actual).
+- **Precios configurables**: `lib/pricing.ts` mantiene `PACKS` como base (créditos/premium/verified/días — estructural, no editable), pero el precio real se resuelve con `getEffectivePacks()`, que sobreescribe con `Config` (clave `pricing.<packId>`) igual que ya hacía el motor de comisiones. `POST /api/checkout` pasó a leer de ahí en vez del constante crudo — cierra un gap real: antes el precio cobrado y el precio mostrado en `/premium` podían quedar desincronizados si alguien editaba uno sin el otro. Ahora ambos leen de `GET /api/pricing` (público, sin datos sensibles). Admin edita desde `/admin/precios` (nueva entrada en "Finanzas"), con el mismo audit log (`PACK_PRICE_UPDATED`).
+- Sin cambios a estructura de precios (créditos/días/premium/verified siguen fijos en código) — solo el número del precio es editable. Agregar/quitar un pack entero sigue siendo un cambio de código, no de admin.
+- Verificación: `tsc --noEmit` limpio, `eslint` limpio sobre los archivos tocados, 45/45 tests (`npm test`) pasando. `next build` local volvió a fallar por el mismo lock cruzado de `.next/lock` en el volumen SMB compartido con la máquina Windows (ya diagnosticado en un ciclo anterior, fuera de control desde este lado) — verificación real de build queda en manos del build remoto de Vercel tras el push.
+- Migración Turso: `AdminAuditLog` es tabla nueva, necesita `CREATE TABLE IF NOT EXISTS` en un script `scripts/sync-*-schema-turso.ts` nuevo antes de que el audit log funcione en producción — pendiente, requiere autorización explícita del usuario antes de correr contra la base real (protocolo establecido este ciclo).
+
 ## Backlog priorizado (ciclos futuros)
 
 | Ítem | Bloqueado por | Motivo |
@@ -81,7 +91,6 @@ Instrucción explícita: "sacar mercado pago de la ecuación y seguir lo que dic
 | Operations unificado + Centro de disputas (Fases 24-27, 39) | Wallet + volumen real | Hoy `Report` ya dispara reembolsos puntuales; un sistema de disputas completo (evidencia, tracking, escalamiento) tiene sentido cuando haya casos reales que lo justifiquen — con 0 disputas hasta ahora, construirlo sería UI sin casos de uso reales detrás. |
 | Admin Wallet dedicado (Fase 34) | — | Evaluado y **descartado por ahora**: `/admin/usuarios` (saldo por usuario) + `/admin/transacciones` (ledger completo, todos los tipos, filtrable) + Herramientas (ajustes auditados, nunca edición directa) ya cubren lo que pide la fase. Una página nueva sería duplicar, no agregar. Se reabre si el admin real reporta que algo específico le falta ahí. |
 | Roles granulares (Moderador/Soporte/Finance/Analyst) | — | Ya documentado como pendiente en `ADMIN_ROADMAP.md` desde el ciclo del backoffice — requiere modelo de permisos nuevo, no una casilla de UI. |
-| Audit log de acciones admin (Fase 33) | — | Mismo gap, mismo motivo, ya documentado en `ADMIN_ROADMAP.md`. |
 | Design tokens formales para la app de consumidor | — | El admin ya tiene `components/admin/ui.tsx`; la app de consumidor sigue siendo Tailwind inline por pantalla. No es un bug, pero es inconsistente con lo que pide Loop 05. |
 | Contraste de color y navegación por teclado completa | — | No auditado todavía este ciclo — requiere revisión manual/herramienta dedicada, no solo grep. |
 

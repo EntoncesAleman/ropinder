@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { logAdminAction } from "@/lib/auditLog";
 
 export async function POST(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin();
@@ -31,6 +32,10 @@ export async function POST(_: NextRequest, { params }: { params: Promise<{ id: s
     prisma.verificationCode.deleteMany({ where: { email: target.email } }),
     prisma.user.delete({ where: { id } }),
   ]);
+
+  // targetId isn't a foreign key on AdminAuditLog, so this stays valid
+  // (and searchable) even though the User row it points to is now gone.
+  logAdminAction(admin.id, "USER_DELETED", "User", id, { email: target.email, name: target.name }).catch(() => {});
 
   return NextResponse.json({ ok: true });
 }

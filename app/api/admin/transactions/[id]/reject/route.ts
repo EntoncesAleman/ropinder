@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { logAdminAction } from "@/lib/auditLog";
 
 export async function POST(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin();
@@ -31,6 +32,8 @@ export async function POST(_: NextRequest, { params }: { params: Promise<{ id: s
     where: { id },
     data: { status: "REJECTED", meta: JSON.stringify({ ...meta, rejectedBy: admin.email, rejectedAt: new Date().toISOString() }) },
   });
+
+  logAdminAction(admin.id, tx.type === "WITHDRAWAL" ? "WITHDRAWAL_REJECTED" : "BANK_TRANSFER_REJECTED", "Transaction", id, { userId: tx.userId, amount: tx.amount }).catch(() => {});
 
   return NextResponse.json({ ok: true, transaction: updated });
 }

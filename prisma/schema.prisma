@@ -63,6 +63,7 @@ model User {
   auctionsWon      Auction[]     @relation("AuctionsWon")
   bids             Bid[]
   configEdits      Config[]
+  auditLogs        AdminAuditLog[]
 }
 
 model ClothingItem {
@@ -394,4 +395,25 @@ model Config {
   updatedAt   DateTime @updatedAt
 
   updatedBy User? @relation(fields: [updatedById], references: [id])
+}
+
+// Audit trail of sensitive admin actions (Loop 03 — ADMIN §"Audit Logs").
+// Append-only by convention (no update/delete route ever touches this
+// table) — same "never mutate history" rule the financial ledger follows.
+// Only the highest-impact actions log here (ban/delete a user, grant
+// premium/credits, promote/demote admin, edit commissions, block an
+// email) — logging every read or minor toggle would bury what matters.
+model AdminAuditLog {
+  id         String   @id @default(cuid())
+  adminId    String
+  action     String
+  targetType String
+  targetId   String?
+  meta       String   @default("{}")
+  createdAt  DateTime @default(now())
+
+  admin User @relation(fields: [adminId], references: [id])
+
+  @@index([createdAt])
+  @@index([adminId, createdAt])
 }

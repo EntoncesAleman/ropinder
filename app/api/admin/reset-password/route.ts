@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { logAdminAction } from "@/lib/auditLog";
 
 export async function POST(req: NextRequest) {
   const admin = await requireAdmin();
@@ -17,6 +18,8 @@ export async function POST(req: NextRequest) {
 
   const hash = await bcrypt.hash(newPassword, 10);
   await prisma.user.update({ where: { id: target.id }, data: { password: hash } });
+
+  logAdminAction(admin.id, "PASSWORD_RESET", "User", target.id, { email: target.email }).catch(() => {});
 
   return NextResponse.json({ ok: true });
 }

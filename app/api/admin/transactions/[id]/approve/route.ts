@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/auth";
 import { applyPackToUser } from "@/lib/applyPack";
 import { PackId } from "@/lib/pricing";
 import { getFinancialProvider } from "@/lib/financialProvider";
+import { logAdminAction } from "@/lib/auditLog";
 
 export async function POST(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin();
@@ -29,6 +30,7 @@ export async function POST(_: NextRequest, { params }: { params: Promise<{ id: s
       where: { id },
       data: { status: "COMPLETED", meta: JSON.stringify({ ...meta, approvedBy: admin.email, approvedAt: new Date().toISOString(), providerRef: payout.providerRef }) },
     });
+    logAdminAction(admin.id, "WITHDRAWAL_APPROVED", "Transaction", id, { userId: tx.userId, amount: tx.amount, providerRef: payout.providerRef }).catch(() => {});
     return NextResponse.json({ ok: true, transaction: updated });
   }
 
@@ -40,6 +42,8 @@ export async function POST(_: NextRequest, { params }: { params: Promise<{ id: s
     where: { id },
     data: { status: "COMPLETED", meta: JSON.stringify({ ...meta, approvedBy: admin.email, approvedAt: new Date().toISOString() }) },
   });
+
+  logAdminAction(admin.id, "BANK_TRANSFER_APPROVED", "Transaction", id, { userId: tx.userId, packId: meta.packId }).catch(() => {});
 
   return NextResponse.json({ ok: true, transaction: updated });
 }

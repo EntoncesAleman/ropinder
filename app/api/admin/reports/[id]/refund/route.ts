@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { notify } from "@/lib/notify";
 import { getFinancialProvider } from "@/lib/financialProvider";
+import { logAdminAction } from "@/lib/auditLog";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin();
@@ -60,6 +61,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   });
 
   await notify(buyerId, "REPORT_RESOLVED", "Te reembolsamos tu pago", `Se te devolvieron $${refundAmount.toFixed(2)} tras revisar tu reporte.`, "/profile");
+
+  logAdminAction(admin.id, "REPORT_REFUNDED", "Report", report.id, { matchId: report.matchId, buyerId, refundAmount }).catch(() => {});
 
   return NextResponse.json({ ok: true, refund: refundTx });
 }

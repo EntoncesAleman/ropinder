@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { logAdminAction } from "@/lib/auditLog";
 
 export async function GET() {
   const admin = await requireAdmin();
@@ -25,6 +26,8 @@ export async function POST(req: NextRequest) {
     update: { reason: reason?.trim() ?? "", blockedBy: admin.email },
     create: { email: cleanEmail, reason: reason?.trim() ?? "", blockedBy: admin.email },
   });
+
+  logAdminAction(admin.id, "EMAIL_BLOCKED", "BlockedEmail", blocked.id, { email: cleanEmail, reason: reason?.trim() ?? "" }).catch(() => {});
 
   return NextResponse.json(blocked);
 }

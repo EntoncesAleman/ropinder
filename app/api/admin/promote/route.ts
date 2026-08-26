@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { logAdminAction } from "@/lib/auditLog";
 
 export async function POST(req: NextRequest) {
   const admin = await requireAdmin();
@@ -17,5 +18,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No podés quitarte el rol de admin a vos mismo" }, { status: 400 });
 
   const user = await prisma.user.update({ where: { id: target.id }, data: { role }, select: { id: true, email: true, role: true } });
+  logAdminAction(admin.id, role === "ADMIN" ? "USER_PROMOTED_ADMIN" : "USER_DEMOTED", "User", target.id, { email: user.email }).catch(() => {});
   return NextResponse.json({ ok: true, user });
 }

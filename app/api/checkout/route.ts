@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
-import { PACKS, PackId } from "@/lib/pricing";
+import { getEffectivePacks, PackId } from "@/lib/pricing";
 import { applyPackToUser } from "@/lib/applyPack";
 import { getFinancialProvider } from "@/lib/financialProvider";
 
@@ -10,7 +10,8 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
 
   const { packId, paymentMethod, receiptUrl } = await req.json();
-  const pack = PACKS[packId as PackId];
+  const packs = await getEffectivePacks();
+  const pack = packs[packId as PackId];
   if (!pack) return NextResponse.json({ error: "Pack inválido" }, { status: 400 });
 
   // Bank transfer isn't verifiable automatically — the purchase stays

@@ -74,14 +74,14 @@ Existe `POST /api/admin/reports/[id]/refund` — genera una transacción inversa
 ## Fase 30 — Notificaciones: **REAL**
 `Notification` + `notify()` (`lib/notify.ts`) + push vía Firebase (`lib/push.ts`, `firebase-messaging-sw.js`). Cubre match, oferta, venta, reportes — no cubre específicamente "disputa" o "retiro" como tipos dedicados todavía (no existen esas entidades).
 
-## Fase 31 — Planes: **PARCIAL, hardcodeado**
-`lib/pricing.ts`: `PACKS` es un objeto constante en código (créditos, premium diario/semanal/mensual/anual, insignia verificada). No hay tabla `Config` ni plan `STORE`. Cambiar un precio hoy requiere editar código y redeployar.
+## Fase 31 — Planes: **REAL para precios, PARCIAL para el resto** (actualizado Ciclo 6)
+`lib/pricing.ts`: `PACKS` sigue siendo la estructura base (créditos/premium/verified/días), pero el `price` de cada pack ahora se resuelve vía `getEffectivePacks()`, que sobreescribe con `Config` (`pricing.<packId>`) si un admin lo editó desde `/admin/precios`. `POST /api/checkout` y la página `/premium` leen ambos del mismo `/api/pricing` — ya no hay precios hardcodeados duplicados en el frontend. Sigue sin existir plan `STORE` ni tabla de planes formal (créditos/premium siguen siendo un enum de IDs fijo, no filas editables en cantidad).
 
-## Fase 32-39 — Admin: **REAL para lo que existe, ausente para lo que no existe**
-El rediseño reciente (backoffice con rutas reales, sidebar izquierdo con separadores, topbar, tablas) cubre Dashboard/Usuarios/Publicaciones/Transacciones/Ofertas/Subastas/Reportes/Herramientas/SEO — todo real, sin mocks. **No existen** (porque las entidades no existen): Admin Wallet dedicado (hoy se ve balance por usuario en su detalle, no una vista agregada de ledger), Admin Comisiones (matriz editable), Admin Chat (editor de preguntas), Admin Tiendas, Admin Disputas, Admin Config genérico, Admin Roles, Admin Logs (no hay audit log de acciones admin — gap ya documentado en `ADMIN_ROADMAP.md`).
+## Fase 32-39 — Admin: **REAL para lo que existe, ausente para lo que no existe** (actualizado Ciclo 6)
+El rediseño reciente (backoffice con rutas reales, sidebar izquierdo con separadores, topbar, tablas) cubre Dashboard/Usuarios/Publicaciones/Transacciones/Ofertas/Subastas/Reportes/Herramientas/SEO/Comisiones/Chat/Precios/Auditoría — todo real, sin mocks. Ciclo 6 agregó `AdminAuditLog` (`lib/auditLog.ts`, `logAdminAction()`) llamado fire-and-forget desde toda acción sensible (ban/delete/promote/blacklist/grant-premium/grant-credits/reset-password/comisiones/precios/aprobar-rechazar transacción/refund/promo), visible en `/admin/logs`. **Siguen sin existir**: Admin Wallet dedicado (hoy se ve balance por usuario en su detalle + ledger completo en Transacciones, evaluado y descartado — ver `ROPINDER_ROADMAP.md`), Admin Tiendas, Admin Disputas, Admin Roles granulares.
 
-## Fase 40 — Configuración: **NO EXISTE**
-No hay tabla `Config`. Todo lo "configurable" del spec (comisiones, costo de retiro, precios, radio) está hardcodeado en archivos `lib/*.ts`.
+## Fase 40 — Configuración: **PARCIAL** (actualizado Ciclo 6)
+`Config` (key/value genérico, `lib/config.ts`) existe desde Ciclo 1 y ahora cubre comisiones, fee de retiro y precios de todos los packs (Ciclo 6, `lib/pricing.ts`). El radio de búsqueda sigue siendo una constante por plan (`lib/geo.ts`), no una fila de `Config` — no hubo necesidad todavía de que un admin lo ajuste sin redeploy.
 
 ## Fase 41-42 — Responsive / PWA: **REAL**
 Mobile-first con rail desktop aparte (`AppNav.tsx`), admin desktop-first con su propio shell. PWA: `manifest.webmanifest`, dos service workers reales (`sw-offline.js` incondicional, `firebase-messaging-sw.js` condicional a push), sin precache de `_next/static` (deliberado, evita el bug clásico de PWA rota post-deploy).

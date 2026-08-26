@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import { logAdminAction } from "@/lib/auditLog";
 
 export async function POST(req: NextRequest) {
   const admin = await requireAdmin();
@@ -23,6 +24,7 @@ export async function POST(req: NextRequest) {
         })
       ),
     ]);
+    logAdminAction(admin.id, "PROMO_CREDIT_ALL", "User", null, { credits: amount, usersAffected: eligible.length, note: note?.trim() ?? "" }).catch(() => {});
     return NextResponse.json({ ok: true, usersAffected: eligible.length });
   }
 
@@ -32,6 +34,8 @@ export async function POST(req: NextRequest) {
   await prisma.transaction.create({
     data: { userId: winner.id, amount: 0, type: "PROMO_RAFFLE_WIN", status: "COMPLETED", meta: JSON.stringify({ credits: amount, note: note?.trim() ?? "", grantedBy: admin.email }) },
   });
+
+  logAdminAction(admin.id, "PROMO_RAFFLE_WIN", "User", winner.id, { credits: amount, winnerEmail: winner.email, poolSize: eligible.length, note: note?.trim() ?? "" }).catch(() => {});
 
   return NextResponse.json({ ok: true, winnerEmail: winner.email, poolSize: eligible.length });
 }

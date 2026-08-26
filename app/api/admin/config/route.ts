@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
+import { logAdminAction } from "@/lib/auditLog";
 import { getConfigNumber, setConfigNumber, CONFIG_KEYS } from "@/lib/config";
 import { WITHDRAWAL_FEE_RATE } from "@/lib/withdrawal";
 import { DEFAULT_COMMISSION_STANDARD, DEFAULT_COMMISSION_PREMIUM, isValidCommissionRate, COMMISSION_RATE_CAP } from "@/lib/commission";
@@ -35,6 +36,8 @@ export async function PATCH(req: NextRequest) {
   if (edits.length === 0) return NextResponse.json({ error: "Nada para actualizar" }, { status: 400 });
 
   await Promise.all(edits.map((e) => setConfigNumber(e.key, e.value, admin.id)));
+
+  logAdminAction(admin.id, "COMMISSION_CONFIG_UPDATED", "Config", null, Object.fromEntries(edits.map((e) => [e.key, e.value]))).catch(() => {});
 
   return NextResponse.json({ ok: true });
 }

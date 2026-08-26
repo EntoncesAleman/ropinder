@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { PACKS, PackId } from "@/lib/pricing";
 import { applyPackToUser } from "@/lib/applyPack";
+import { getFinancialProvider } from "@/lib/financialProvider";
 
 export async function POST(req: NextRequest) {
   const session = await getSession();
@@ -30,7 +31,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, transaction: tx, pending: true });
   }
 
-  await new Promise((r) => setTimeout(r, 300));
+  const charge = await getFinancialProvider().charge({ userId: session.id, amount: pack.price, meta: { packId } });
+  if (charge.status !== "COMPLETED")
+    return NextResponse.json({ error: "No se pudo procesar el pago" }, { status: 402 });
+
   await applyPackToUser(session.id, packId as PackId);
 
   const tx = await prisma.transaction.create({
@@ -39,7 +43,7 @@ export async function POST(req: NextRequest) {
       amount: pack.price,
       type: "CREDIT_PURCHASE",
       status: "COMPLETED",
-      meta: JSON.stringify({ packId, paymentMethod: paymentMethod ?? "card", credits: pack.credits, currency: pack.currency }),
+      meta: JSON.stringify({ packId, paymentMethod: paymentMethod ?? "card", credits: pack.credits, currency: pack.currency, providerRef: charge.providerRef }),
     },
   });
 

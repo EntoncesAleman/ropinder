@@ -1,5 +1,6 @@
 import { prisma } from "./prisma";
 import { notify } from "./notify";
+import { getFinancialProvider } from "./financialProvider";
 
 // Vercel Hobby limits cron to once a day (see vercel.json), which is far too
 // coarse for auctions that can last as little as 6 hours — a winner might
@@ -27,6 +28,19 @@ export async function closeExpiredAuction(auctionId: string): Promise<void> {
     return;
   }
 
+  // The winner already committed by bidding, so this charge happens without
+  // them present — through the provider adapter (mock today) rather than
+  // assuming success outright, so a real provider's decline has somewhere
+  // to go later instead of silently creating a fake escrow hold.
+  const charge = await getFinancialProvider().charge({
+    userId: winningBid.bidderId, amount: winningBid.amount, meta: { auctionId: auction.id, itemId: auction.itemId },
+  });
+  if (charge.status !== "COMPLETED") {
+    await notify(auction.sellerId, "AUCTION_ENDED", "Tu subasta terminó con ganador, pero el cobro falló", "Un admin va a revisar el caso — no se archivó la prenda todavía.", `/subastas/${auction.id}`);
+    await notify(winningBid.bidderId, "AUCTION_WON", "Ganaste la subasta, pero no pudimos cobrarte", "Contactanos desde soporte para resolverlo.", `/subastas/${auction.id}`);
+    return;
+  }
+
   await prisma.clothingItem.update({ where: { id: auction.itemId }, data: { archived: true, soldAt: now } });
 
   // Same escrow the rest of the app uses for a sale — see /api/transactions/release.
@@ -38,7 +52,7 @@ export async function closeExpiredAuction(auctionId: string): Promise<void> {
       status: "PENDING",
       meta: JSON.stringify({
         buyerId: winningBid.bidderId, sellerId: auction.sellerId, itemId: auction.itemId,
-        auctionId: auction.id, delivery: { type: "meetup" },
+        auctionId: auction.id, delivery: { type: "meetup" }, providerRef: charge.providerRef,
       }),
     },
   });

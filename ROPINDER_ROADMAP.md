@@ -57,11 +57,22 @@ Auditado contra `ROPINDER_BIBLE/LOOPS/02-MARKETPLACE.md`:
 | Tienda como publicador separado | NO EXISTE — mismo hallazgo que la auditoría original, sigue bloqueado por decisión de producto |
 | `Operation` unificada | NO EXISTE — mismo hallazgo que la auditoría original |
 
+## Ciclo 5 — Loop 01 (Fintech), FinancialProviderAdapter
+
+Instrucción explícita: "sacar mercado pago de la ecuación y seguir lo que dice el loop fintech" — el propio Loop 01 §8-9 ya resuelve el bloqueo de "no hay proveedor real todavía": `FinancialProviderAdapter` + `MockFinancialProvider` en desarrollo, proveedor real en producción cuando exista. Se implementó eso, no se siguió esperando a MercadoPago.
+
+- `lib/financialProvider.ts` — interfaz `FinancialProviderAdapter` (`charge`/`payout`/`refund`) + `MockFinancialProvider` (simula éxito siempre, nunca mueve plata real, pero devuelve un `providerRef` real y trazable). Único punto de cambio (`getFinancialProvider()`) cuando se conecte un proveedor de verdad — ningún call site necesita tocarse.
+- Los 4 puntos donde se mueve dinero pasan a llamar al adapter en vez de simular inline: `POST /api/checkout` (compra de créditos/premium), `POST /api/matches/[id]/pay` (compra de una prenda — **cierra el hallazgo de "el comprador no paga nada"**: ahora la compra pasa por un `charge()` real y auditable, con manejo de fallo explícito, aunque el Mock hoy siempre lo aprueba), `lib/closeAuction.ts` (el ganador de una subasta ahora también es "cobrado" vía el adapter, con notificación a ambas partes si fallara), y la aprobación de retiro (`payout()`, sigue siendo el admin quien transfiere a mano hasta tener un proveedor real).
+- El reembolso (`POST /api/admin/reports/[id]/refund`) ahora llama `refund()` cuando el pago original tiene `providerRef`, y guarda `refundedBy` en su propio `meta` (antes solo quedaba en el `Report` vinculado, indirecto).
+- **Deliberadamente no se bloqueó a compradores con $0 de saldo** — el Mock cobra sin tocar `balance` (representa "tarjeta/externo", igual que el checkout ya simulaba), así que el comportamiento visible de compra no cambió para nadie. Cuando haya un proveedor real, esa decisión (¿siempre tarjeta externa, o descontar Ropinder Cash primero?) es la que habilita la matriz 10/15/20 de comisión — sigue pendiente, ahora con la arquitectura correcta debajo en vez de bloqueada por completo.
+- Sin cambios de schema — todo lo nuevo vive en los campos `meta` (JSON) que ya existían, no hizo falta sync a Turso.
+- Tests nuevos (`tests/financialProvider.test.ts`).
+
 ## Backlog priorizado (ciclos futuros)
 
 | Ítem | Bloqueado por | Motivo |
 |---|---|---|
-| Conectar MercadoPago real (Fase 15) | Decisión/cuenta del usuario | Ya se conversó — Stripe (única opción del Vercel Marketplace) no soporta payouts a Argentina; MercadoPago requiere que el usuario cree la cuenta comercial y comparta credenciales. Bloqueante para que cualquier cobro con tarjeta deje de ser simulado, y para la matriz de comisión por método de pago (10/15/20). |
+| Conectar MercadoPago real (Fase 15) | Decisión/cuenta del usuario | Ya se conversó — Stripe (única opción del Vercel Marketplace) no soporta payouts a Argentina; MercadoPago requiere que el usuario cree la cuenta comercial y comparta credenciales. La arquitectura ya está lista (`FinancialProviderAdapter`, Ciclo 5) — conectar el proveedor real es implementar una clase nueva y cambiar `getFinancialProvider()`, no tocar los call sites. Sigue bloqueando la matriz de comisión por método de pago (10/15/20), que necesita plata de verdad entrando para tener sentido. |
 | Wallet formal (`Wallet` como modelo con `pending/locked/withdrawable_balance` explícitos) | — | Hoy esos valores se derivan calculando sobre `Transaction` en cada request (correcto, pero no está modelado). Vale la pena solo si el volumen de transacciones lo justifica — con 10 usuarios reales, el cálculo on-the-fly es más simple y no es un cuello de botella. |
 | Pago combinado (saldo + externo) + beneficio de saldo (Fases 12-13) | Wallet formal + gateway real + arreglar que hoy el comprador no paga nada (ver `ROPINDER_AUDIT.md`) | Necesita las tres piezas anteriores para no ser una demo sin backend. |
 | Cuentas Tienda (Fases 2-4, 37, Loop 02) | Decisión de producto | Requiere definir qué datos/verificación/catálogo distingue a una tienda de una persona vendiendo mucho — no es solo un campo `accountType`, cambia signup, perfil, analytics y admin. |

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { getFinancialProvider } from "@/lib/financialProvider";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
@@ -60,8 +61,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
   }
 
-  // Simulated card charge — Ropinder holds the funds in escrow until receipt is confirmed.
-  await new Promise((r) => setTimeout(r, 300));
+  // Goes through the provider adapter (mock today, see lib/financialProvider.ts)
+  // instead of a bare fake delay — the charge is a real event with a
+  // providerRef, even though no actual money moves yet. Ropinder holds the
+  // funds in escrow until receipt is confirmed.
+  const charge = await getFinancialProvider().charge({ userId: session.id, amount, meta: { matchId: id, itemId: itemId ?? null } });
+  if (charge.status !== "COMPLETED")
+    return NextResponse.json({ error: "No se pudo procesar el pago" }, { status: 402 });
 
   const tx = await prisma.transaction.create({
     data: {
@@ -69,7 +75,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       amount,
       type: "ESCROW_HOLD",
       status: "PENDING",
-      meta: JSON.stringify({ matchId: id, buyerId: session.id, sellerId, itemId: itemId ?? null, delivery: deliveryInfo }),
+      meta: JSON.stringify({ matchId: id, buyerId: session.id, sellerId, itemId: itemId ?? null, delivery: deliveryInfo, providerRef: charge.providerRef }),
     },
   });
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { notify } from "@/lib/notify";
+import { getFinancialProvider } from "@/lib/financialProvider";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin();
@@ -18,7 +19,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   });
   if (!escrowTx) return NextResponse.json({ error: "No hay ningún pago para este match" }, { status: 400 });
 
-  const meta = JSON.parse(escrowTx.meta) as { buyerId?: string; sellerId?: string; grossAmount?: number };
+  const meta = JSON.parse(escrowTx.meta) as { buyerId?: string; sellerId?: string; grossAmount?: number; providerRef?: string };
   const buyerId = meta.buyerId;
   if (!buyerId) return NextResponse.json({ error: "No se pudo identificar al comprador" }, { status: 400 });
 
@@ -36,13 +37,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   await prisma.user.update({ where: { id: buyerId }, data: { balance: { increment: refundAmount } } });
 
+  // Reverses the original charge through the same provider that took it, when
+  // one exists — older transactions predating the adapter have no providerRef.
+  const refund = meta.providerRef
+    ? await getFinancialProvider().refund({ providerRef: meta.providerRef, amount: refundAmount })
+    : null;
+
   const refundTx = await prisma.transaction.create({
     data: {
       userId: buyerId,
       amount: refundAmount,
       type: "ESCROW_REFUND",
       status: "COMPLETED",
-      meta: JSON.stringify({ matchId: report.matchId, reportId: report.id }),
+      meta: JSON.stringify({ matchId: report.matchId, reportId: report.id, refundedBy: admin.email, providerRef: meta.providerRef ?? null, providerRefundStatus: refund?.status ?? null }),
       availableAt: new Date(),
     },
   });

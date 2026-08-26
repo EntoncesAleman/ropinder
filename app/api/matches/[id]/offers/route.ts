@@ -27,7 +27,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // Two kinds of offer on the same item: pay a money amount, or propose a
   // barter (trade one of my own items for it). Exactly one of the two.
   const isTrade = typeof offeredItemId === "string" && offeredItemId.length > 0;
-  if (!isTrade && (typeof amount !== "number" || amount <= 0))
+  if (!isTrade && (typeof amount !== "number" || !Number.isFinite(amount) || amount <= 0))
     return NextResponse.json({ error: "Oferta inválida" }, { status: 400 });
 
   const match = await prisma.match.findUnique({ where: { id } });

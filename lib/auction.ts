@@ -11,7 +11,7 @@ export interface AuctionState {
 // from the route so the money-math can be unit tested without a database.
 // The route still re-derives everything from the DB row, never the client.
 export function validateBid(auction: AuctionState, bidderId: string, amount: number, now: Date): string | null {
-  if (!(amount > 0)) return "Monto inválido";
+  if (!Number.isFinite(amount) || amount <= 0) return "Monto inválido";
   if (auction.sellerId === bidderId) return "No podés pujar en tu propia subasta";
   if (auction.status !== "ACTIVE" || now < auction.startsAt || now >= auction.endsAt)
     return "Esta subasta no está activa";

@@ -34,6 +34,12 @@ test("rejects a non-positive amount", () => {
   assert.ok(validateBid(baseAuction(), "bidder-1", -50, now));
 });
 
+test("rejects a non-finite amount (Infinity/NaN can't be smuggled past the > 0 check)", () => {
+  assert.ok(validateBid(baseAuction(), "bidder-1", Infinity, now));
+  assert.ok(validateBid(baseAuction(), "bidder-1", -Infinity, now));
+  assert.ok(validateBid(baseAuction(), "bidder-1", NaN, now));
+});
+
 test("rejects the seller bidding on their own auction", () => {
   assert.ok(validateBid(baseAuction(), "seller-1", 5000, now));
 });

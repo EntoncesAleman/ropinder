@@ -10,9 +10,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params;
   const body = await req.json();
   const { itemId, delivery } = body;
-  let amount = body.amount;
-  if (typeof amount !== "number" || amount <= 0)
-    return NextResponse.json({ error: "Monto inválido" }, { status: 400 });
+  if (!itemId) return NextResponse.json({ error: "Falta la prenda" }, { status: 400 });
+  let amount: number;
 
   // Delivery is informational only right now — there's no courier account
   // connected yet, so "shipping" just records where to send it; actually
@@ -37,28 +36,27 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const sellerId = match.userAId === session.id ? match.userBId : match.userAId;
 
-  // When paying for a specific listing, the source of truth is either an
-  // offer the seller explicitly accepted, or the item's own listed price —
-  // never a client-supplied amount, or a buyer could "pay" a fabricated
-  // amount into escrow (there's no real card charge yet) and have it
-  // released as a real balance to the seller.
-  if (itemId) {
-    const item = await prisma.clothingItem.findUnique({ where: { id: itemId } });
-    if (!item || item.userId !== sellerId || item.archived)
-      return NextResponse.json({ error: "Esa prenda ya no está disponible" }, { status: 400 });
+  // The source of truth is always either an offer the seller explicitly
+  // accepted, or the item's own listed price — never a client-supplied
+  // amount, or a buyer could "pay" a fabricated amount into escrow (there's
+  // no real card charge yet) and have it released as a real balance to the
+  // seller. itemId is required above specifically so this branch can never
+  // be skipped.
+  const item = await prisma.clothingItem.findUnique({ where: { id: itemId } });
+  if (!item || item.userId !== sellerId || item.archived)
+    return NextResponse.json({ error: "Esa prenda ya no está disponible" }, { status: 400 });
 
-    const acceptedOffer = await prisma.offer.findFirst({
-      where: { matchId: id, itemId, buyerId: session.id, status: "ACCEPTED" },
-      orderBy: { respondedAt: "desc" },
-    });
+  const acceptedOffer = await prisma.offer.findFirst({
+    where: { matchId: id, itemId, buyerId: session.id, status: "ACCEPTED" },
+    orderBy: { respondedAt: "desc" },
+  });
 
-    if (acceptedOffer) {
-      amount = acceptedOffer.amount;
-    } else {
-      if (typeof item.price !== "number" || item.price <= 0)
-        return NextResponse.json({ error: "Esa prenda no tiene un precio configurado" }, { status: 400 });
-      amount = item.price;
-    }
+  if (acceptedOffer) {
+    amount = acceptedOffer.amount;
+  } else {
+    if (typeof item.price !== "number" || item.price <= 0)
+      return NextResponse.json({ error: "Esa prenda no tiene un precio configurado" }, { status: 400 });
+    amount = item.price;
   }
 
   // Goes through the provider adapter (mock today, see lib/financialProvider.ts)

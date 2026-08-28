@@ -31,6 +31,7 @@ export default function RoperoPage() {
   const [verifying, setVerifying] = useState(false);
   const [editingPriceId, setEditingPriceId] = useState<string | null>(null);
   const [priceDraft, setPriceDraft] = useState("");
+  const [vipPublishCost, setVipPublishCost] = useState<number | null>(null);
 
   useEffect(() => {
     if (!loading && !user) router.push("/login");
@@ -50,6 +51,12 @@ export default function RoperoPage() {
     const res = await fetch(`/api/profile/items`);
     const data = await res.json();
     if (Array.isArray(data)) setItems(data);
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/pricing").then((res) => res.ok ? res.json() : null).then((data) => {
+      if (data) setVipPublishCost(data.vipPublishCost);
+    });
   }, []);
 
   useEffect(() => {
@@ -290,7 +297,7 @@ export default function RoperoPage() {
                 {!item.isVip && (
                   <button onClick={() => handlePublishVip(item.id)} disabled={bumping === item.id}
                     className="flex items-center gap-1 text-xs bg-rose-100 text-rose-700 rounded-full px-2 py-1 hover:bg-rose-200 transition disabled:opacity-50">
-                    <Zap size={10} /> {bumping === item.id ? "..." : "Publicar VIP"}
+                    <Zap size={10} /> {bumping === item.id ? "..." : `Publicar VIP (${vipPublishCost ?? "..."}✦)`}
                   </button>
                 )}
               </div>

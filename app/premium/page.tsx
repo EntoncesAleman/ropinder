@@ -47,7 +47,7 @@ export default function PremiumPage() {
 
   useEffect(() => {
     fetch("/api/pricing").then((res) => res.ok ? res.json() : null).then((data) => {
-      if (data) setPrices(Object.fromEntries(Object.entries(data).map(([id, p]) => [id, (p as { price: number }).price])));
+      if (data) setPrices(Object.fromEntries(Object.entries(data.packs).map(([id, p]) => [id, (p as { price: number }).price])));
     });
   }, []);
 

@@ -53,6 +53,7 @@ export default function ItemDetailPage({ params }: { params: Promise<{ id: strin
   const [unlocking, setUnlocking] = useState(false);
   const [error, setError] = useState("");
   const [photoIndex, setPhotoIndex] = useState(0);
+  const [vipUnlockCost, setVipUnlockCost] = useState<number | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [newQuestion, setNewQuestion] = useState("");
   const [askBusy, setAskBusy] = useState(false);
@@ -77,6 +78,9 @@ export default function ItemDetailPage({ params }: { params: Promise<{ id: strin
       setItem(data);
     });
     Promise.resolve().then(() => fetchQuestions());
+    fetch("/api/pricing").then((res) => res.ok ? res.json() : null).then((data) => {
+      if (data) setVipUnlockCost(data.vipUnlockCost);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, loading, id]);
 
@@ -212,7 +216,7 @@ export default function ItemDetailPage({ params }: { params: Promise<{ id: strin
           <motion.button whileTap={{ scale: 0.97 }} onClick={handleUnlockVip} disabled={unlocking}
             className="w-full bg-gradient-to-r from-amber-500 to-rose-500 text-white font-semibold py-3.5 rounded-xl hover:opacity-90 transition disabled:opacity-60 flex items-center justify-center gap-2">
             <Zap size={18} />
-            {unlocking ? "..." : "Desbloquear VIP — chat directo (5✦)"}
+            {unlocking ? "..." : `Desbloquear VIP — chat directo (${vipUnlockCost ?? "..."}✦)`}
           </motion.button>
         )}
 

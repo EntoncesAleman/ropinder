@@ -28,31 +28,38 @@ export default function UploadPage() {
   const [auctionStartingPrice, setAuctionStartingPrice] = useState("");
   const [auctionMinIncrement, setAuctionMinIncrement] = useState("");
   const [auctionDurationHours, setAuctionDurationHours] = useState("24");
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
+  const MAX_PHOTOS = 6;
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
   const [dragging, setDragging] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const handleFile = useCallback((file: File) => {
-    if (!file.type.startsWith("image/")) return;
-    setImageFile(file);
-    const reader = new FileReader();
-    reader.onloadend = () => setPreview(reader.result as string);
-    reader.readAsDataURL(file);
-  }, []);
+  const handleFiles = useCallback((files: FileList | File[]) => {
+    const images = Array.from(files).filter((f) => f.type.startsWith("image/"));
+    setImageFiles((prev) => [...prev, ...images].slice(0, MAX_PHOTOS));
+    images.slice(0, Math.max(0, MAX_PHOTOS - imageFiles.length)).forEach((file) => {
+      const reader = new FileReader();
+      reader.onloadend = () => setPreviews((prev) => [...prev, reader.result as string].slice(0, MAX_PHOTOS));
+      reader.readAsDataURL(file);
+    });
+  }, [imageFiles.length]);
+
+  function removePhoto(index: number) {
+    setImageFiles((prev) => prev.filter((_, i) => i !== index));
+    setPreviews((prev) => prev.filter((_, i) => i !== index));
+  }
 
   function onDrop(e: React.DragEvent) {
     e.preventDefault(); setDragging(false);
-    const file = e.dataTransfer.files[0];
-    if (file) handleFile(file);
+    if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!imageFile || !user) return;
+    if (imageFiles.length === 0 || !user) return;
 
     if (modality === "VENTA" && !(Number(form.price) > 0)) {
       setError("Ingresá un precio para vender la prenda");
@@ -66,21 +73,27 @@ export default function UploadPage() {
     setLoading(true);
     setError("");
 
-    const fd = new FormData();
-    fd.append("file", imageFile);
-    const uploadRes = await fetch("/api/upload", { method: "POST", body: fd });
-    const uploadData = await uploadRes.json().catch(() => ({ error: "Error de conexión al subir la imagen" }));
-    if (!uploadRes.ok) {
-      setError(uploadData.error ?? "No se pudo subir la imagen");
-      setLoading(false);
-      return;
+    // Uploaded one at a time (not Promise.all) so a failure mid-batch stops
+    // early instead of racing partial uploads against each other.
+    const urls: string[] = [];
+    for (const file of imageFiles) {
+      const fd = new FormData();
+      fd.append("file", file);
+      const uploadRes = await fetch("/api/upload", { method: "POST", body: fd });
+      const uploadData = await uploadRes.json().catch(() => ({ error: "Error de conexión al subir una imagen" }));
+      if (!uploadRes.ok) {
+        setError(uploadData.error ?? "No se pudo subir una de las imágenes");
+        setLoading(false);
+        return;
+      }
+      urls.push(uploadData.url);
     }
 
     const brand = form.brand === "Otra" ? customBrand.trim() : form.brand;
     const size = form.size === "Otro" ? customSize.trim() : form.size;
 
     const body: Record<string, unknown> = {
-      ...form, brand, size, imageUrl: uploadData.url,
+      ...form, brand, size, imageUrl: urls[0], images: urls,
       price: modality === "VENTA" ? form.price : "",
     };
     if (modality === "SUBASTA") {
@@ -130,33 +143,48 @@ export default function UploadPage() {
       </p>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <div
-          onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={onDrop}
-          onClick={() => fileRef.current?.click()}
-          className={`relative h-48 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition ${dragging ? "border-rose-400 bg-rose-50" : "border-slate-200 bg-slate-50 hover:bg-rose-50 hover:border-rose-300"}`}
-        >
-          <AnimatePresence>
-            {preview ? (
-              <motion.div key="preview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 rounded-2xl overflow-hidden">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={preview} alt="preview" className="w-full h-full object-cover" />
-                <button type="button" onClick={(e) => { e.stopPropagation(); setPreview(null); setImageFile(null); }}
-                  className="absolute top-2 right-2 bg-white rounded-full p-1 shadow text-slate-500 hover:text-rose-500">
-                  <X size={14} />
+        {previews.length === 0 ? (
+          <div
+            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={onDrop}
+            onClick={() => fileRef.current?.click()}
+            className={`relative h-48 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition ${dragging ? "border-rose-400 bg-rose-50" : "border-slate-200 bg-slate-50 hover:bg-rose-50 hover:border-rose-300"}`}
+          >
+            <div className="flex flex-col items-center gap-2 text-slate-400">
+              <ImagePlus size={32} strokeWidth={1.5} />
+              <span className="text-sm font-medium">Arrastrá o hacé clic</span>
+              <span className="text-xs">Hasta {MAX_PHOTOS} fotos — JPG, PNG, WEBP</span>
+            </div>
+          </div>
+        ) : (
+          <div>
+            <div className="grid grid-cols-3 gap-2">
+              <AnimatePresence>
+                {previews.map((src, i) => (
+                  <motion.div key={i} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
+                    className="relative aspect-square rounded-xl overflow-hidden bg-slate-100">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={src} alt={`Foto ${i + 1}`} className="w-full h-full object-cover" />
+                    {i === 0 && <span className="absolute bottom-1 left-1 bg-black/60 text-white text-[9px] font-semibold rounded-full px-1.5 py-0.5">Portada</span>}
+                    <button type="button" onClick={() => removePhoto(i)} aria-label={`Quitar foto ${i + 1}`}
+                      className="absolute top-1 right-1 bg-white rounded-full p-1 shadow text-slate-500 hover:text-rose-500">
+                      <X size={12} />
+                    </button>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+              {previews.length < MAX_PHOTOS && (
+                <button type="button" onClick={() => fileRef.current?.click()}
+                  className="aspect-square rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 hover:bg-rose-50 hover:border-rose-300 flex items-center justify-center text-slate-400 transition">
+                  <ImagePlus size={22} strokeWidth={1.5} />
                 </button>
-              </motion.div>
-            ) : (
-              <motion.div key="empty" className="flex flex-col items-center gap-2 text-slate-400">
-                <ImagePlus size={32} strokeWidth={1.5} />
-                <span className="text-sm font-medium">Arrastrá o hacé clic</span>
-                <span className="text-xs">JPG, PNG, WEBP</span>
-              </motion.div>
-            )}
-          </AnimatePresence>
-          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
-        </div>
+              )}
+            </div>
+            <p className="text-[11px] text-slate-400 mt-1.5">La primera foto es la portada — se ve en el feed y el swipe.</p>
+          </div>
+        )}
+        <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => { if (e.target.files?.length) handleFiles(e.target.files); e.target.value = ""; }} />
 
         <input placeholder="Título (ej: Campera de cuero negra)" value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
           className="border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300" required />
@@ -269,7 +297,7 @@ export default function UploadPage() {
 
         {error && <p className="text-rose-500 text-sm text-center">{error}</p>}
 
-        <motion.button whileTap={{ scale: 0.97 }} type="submit" disabled={loading || !imageFile}
+        <motion.button whileTap={{ scale: 0.97 }} type="submit" disabled={loading || imageFiles.length === 0}
           className="w-full bg-rose-500 text-white font-semibold py-3.5 rounded-xl hover:bg-rose-600 transition flex items-center justify-center gap-2 disabled:opacity-50">
           <Upload size={18} /> {loading ? "Publicando..." : "Publicar prenda"}
         </motion.button>

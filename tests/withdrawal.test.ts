@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { feeFreeAt, splitByFeeWindow, withdrawableAfterFee, calculateWithdrawal, WITHDRAWAL_FEE_RATE } from "../lib/withdrawal";
+import { feeFreeAt, splitByFeeWindow, withdrawableAfterFee, calculateWithdrawal, withdrawalHoldHours, WITHDRAWAL_FEE_RATE } from "../lib/withdrawal";
 
 const HOUR = 60 * 60 * 1000;
 
@@ -58,4 +58,17 @@ test("calculateWithdrawal: an explicit feeRate overrides the default constant", 
 test("withdrawableAfterFee: an explicit feeRate overrides the default constant", () => {
   const result = withdrawableAfterFee(100, 50, 0.10);
   assert.equal(result, 50 + 100 * 0.9);
+});
+
+test("withdrawalHoldHours: Premium sellers get a 24h hold, standard sellers get 48h", () => {
+  assert.equal(withdrawalHoldHours(true), 24);
+  assert.equal(withdrawalHoldHours(false), 48);
+});
+
+test("withdrawalHoldHours: Premium's total time-to-fee-free is 2 days, standard's is 3", () => {
+  const releasedAt = new Date("2026-01-01T00:00:00Z");
+  const premiumAvailableAt = new Date(releasedAt.getTime() + withdrawalHoldHours(true) * HOUR);
+  const standardAvailableAt = new Date(releasedAt.getTime() + withdrawalHoldHours(false) * HOUR);
+  assert.equal((feeFreeAt(premiumAvailableAt).getTime() - releasedAt.getTime()) / HOUR, 48);
+  assert.equal((feeFreeAt(standardAvailableAt).getTime() - releasedAt.getTime()) / HOUR, 72);
 });

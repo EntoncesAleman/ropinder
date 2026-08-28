@@ -2,14 +2,15 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Zap, DollarSign, Crown, Rocket, Plus, Shirt, BadgeCheck, Store, Megaphone, Gavel } from "lucide-react";
+import { Zap, DollarSign, Crown, Rocket, Plus, Shirt, BadgeCheck, Store, Megaphone, Gavel, Eye, Heart, Star } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import Link from "next/link";
 import Image from "next/image";
 
 interface ClothingItem {
   id: string; title: string; brand: string; size: string; condition: string;
-  imageUrl: string; price: number | null; isBumped: boolean; isAd: boolean; createdAt: string;
+  imageUrl: string; price: number | null; isBumped: boolean; isAd: boolean; isVip: boolean; createdAt: string;
+  viewCount: number; likesCount: number; favoritesCount: number;
 }
 
 interface WithdrawInfo {
@@ -28,6 +29,8 @@ export default function RoperoPage() {
   const [withdrawError, setWithdrawError] = useState("");
   const [withdrawRequested, setWithdrawRequested] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [editingPriceId, setEditingPriceId] = useState<string | null>(null);
+  const [priceDraft, setPriceDraft] = useState("");
 
   useEffect(() => {
     if (!loading && !user) router.push("/login");
@@ -88,6 +91,24 @@ export default function RoperoPage() {
     const data = await res.json();
     if (!res.ok) { alert(data.error); } else { await fetchItems(); }
     setBumping(null);
+  }
+
+  async function handlePublishVip(itemId: string) {
+    setBumping(itemId);
+    const res = await fetch(`/api/clothes/${itemId}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "publishVip" }) });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error); } else { await refresh(); await fetchItems(); }
+    setBumping(null);
+  }
+
+  async function handleSavePrice(itemId: string) {
+    const price = Number(priceDraft);
+    setEditingPriceId(null);
+    if (!Number.isFinite(price) || price <= 0) return;
+    const res = await fetch(`/api/clothes/${itemId}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ price }),
+    });
+    if (res.ok) await fetchItems();
   }
 
   async function handleVerify() {
@@ -224,10 +245,36 @@ export default function RoperoPage() {
                       <Megaphone size={10} /> Publicidad
                     </span>
                   )}
+                  {item.isVip && (
+                    <span className="inline-flex items-center gap-1 text-xs bg-rose-100 text-rose-700 rounded-full px-2 py-0.5">
+                      <Zap size={10} /> VIP
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2.5 mt-1 text-[11px] text-slate-400">
+                  <span className="flex items-center gap-0.5"><Eye size={11} /> {item.viewCount}</span>
+                  <span className="flex items-center gap-0.5"><Heart size={11} /> {item.likesCount}</span>
+                  <span className="flex items-center gap-0.5"><Star size={11} /> {item.favoritesCount}</span>
                 </div>
               </div>
               <div className="flex flex-col items-end gap-1">
-                {item.price && <p className="text-xs font-bold text-emerald-600">${item.price}</p>}
+                {item.price != null && (
+                  editingPriceId === item.id ? (
+                    <input
+                      autoFocus type="number" min="1" step="1" value={priceDraft}
+                      onChange={(e) => setPriceDraft(e.target.value)}
+                      onBlur={() => handleSavePrice(item.id)}
+                      onKeyDown={(e) => e.key === "Enter" && handleSavePrice(item.id)}
+                      className="w-20 text-xs font-bold text-emerald-600 border border-emerald-200 rounded px-1.5 py-0.5 text-right focus:outline-none"
+                    />
+                  ) : (
+                    <button onClick={() => { setEditingPriceId(item.id); setPriceDraft(String(item.price)); }}
+                      title="Editar precio — si lo bajás, avisamos a quienes le dieron like"
+                      className="text-xs font-bold text-emerald-600 hover:underline">
+                      ${item.price}
+                    </button>
+                  )
+                )}
                 {!item.isBumped && (
                   <button onClick={() => handleBump(item.id)} disabled={bumping === item.id}
                     className="flex items-center gap-1 text-xs bg-amber-100 text-amber-700 rounded-full px-2 py-1 hover:bg-amber-200 transition disabled:opacity-50">
@@ -238,6 +285,12 @@ export default function RoperoPage() {
                   <button onClick={() => handleToggleAd(item.id)} disabled={bumping === item.id}
                     className={`flex items-center gap-1 text-xs rounded-full px-2 py-1 transition disabled:opacity-50 ${item.isAd ? "bg-violet-200 text-violet-800" : "bg-violet-100 text-violet-700 hover:bg-violet-200"}`}>
                     <Megaphone size={10} /> {item.isAd ? "Quitar de publicidad" : "Poner en publicidad"}
+                  </button>
+                )}
+                {!item.isVip && (
+                  <button onClick={() => handlePublishVip(item.id)} disabled={bumping === item.id}
+                    className="flex items-center gap-1 text-xs bg-rose-100 text-rose-700 rounded-full px-2 py-1 hover:bg-rose-200 transition disabled:opacity-50">
+                    <Zap size={10} /> {bumping === item.id ? "..." : "Publicar VIP"}
                   </button>
                 )}
               </div>

@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { LogOut, Pencil, BadgeCheck, Crown, Lock, FileText, MapPin, Receipt, LifeBuoy, Star, ShieldAlert, Mail, Phone, Bell } from "lucide-react";
+import { LogOut, Pencil, BadgeCheck, Crown, Lock, FileText, MapPin, Receipt, LifeBuoy, Star, ShieldAlert, Mail, Phone, Bell, Bookmark } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AddressAutocomplete } from "@/components/AddressAutocomplete";
 import { registerPushToken } from "@/lib/firebaseClient";
@@ -291,6 +291,10 @@ export default function ProfilePage() {
 
             <Link href="/history" className="flex items-center gap-2 text-sm text-slate-600 hover:text-rose-500 mb-3">
               <Receipt size={15} /> Historial de compras/ventas
+            </Link>
+
+            <Link href="/busquedas-guardadas" className="flex items-center gap-2 text-sm text-slate-600 hover:text-rose-500 mb-3">
+              <Bookmark size={15} /> Búsquedas guardadas
             </Link>
           </>
         )}

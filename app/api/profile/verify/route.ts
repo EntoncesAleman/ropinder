@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 
 const VERIFICATION_COST_CREDITS = 50;
+const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
 
 export async function POST() {
   const session = await getSession();
@@ -13,7 +14,7 @@ export async function POST() {
 
   const user = await prisma.user.update({
     where: { id: session.id },
-    data: { verified: true, verifiedAt: new Date(), credits: { decrement: VERIFICATION_COST_CREDITS } },
+    data: { verified: true, verifiedAt: new Date(), verifiedUntil: new Date(Date.now() + ONE_YEAR_MS), credits: { decrement: VERIFICATION_COST_CREDITS } },
     select: { id: true, verified: true, credits: true },
   });
 

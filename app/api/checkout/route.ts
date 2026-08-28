@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
 
   const { packId, paymentMethod, receiptUrl } = await req.json();
-  const packs = await getEffectivePacks();
+  const packs = await getEffectivePacks(session.accountType === "STORE" ? "STORE" : "PERSONAL");
   const pack = packs[packId as PackId];
   if (!pack) return NextResponse.json({ error: "Pack inválido" }, { status: 400 });
 

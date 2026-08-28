@@ -38,7 +38,7 @@ export async function getSession() {
     address: true, crossStreets: true, postalCode: true,
     isPremium: true, premiumUntil: true, premiumPlan: true, credits: true, balance: true, latitude: true, longitude: true,
     role: true, bannedAt: true, ratingAvg: true, ratingCount: true,
-    verified: true, emailVerified: true, lastSeenAt: true,
+    verified: true, verifiedUntil: true, emailVerified: true, lastSeenAt: true, accountType: true,
   } as const;
 
   const user = await prisma.user.findUnique({ where: { id: userId }, select });
@@ -49,6 +49,14 @@ export async function getSession() {
   if (user.isPremium && user.premiumUntil && user.premiumUntil < new Date()) {
     await prisma.user.update({ where: { id: userId }, data: { isPremium: false } });
     user.isPremium = false;
+  }
+
+  // Same lazy-expiry pattern for the verified badge — it's a yearly renewal,
+  // not a one-time permanent purchase. A null verifiedUntil (legacy grants
+  // predating this field) is left alone rather than guessed at.
+  if (user.verified && user.verifiedUntil && user.verifiedUntil < new Date()) {
+    await prisma.user.update({ where: { id: userId }, data: { verified: false } });
+    user.verified = false;
   }
 
   // getSession() runs on nearly every request — throttle the "last seen"

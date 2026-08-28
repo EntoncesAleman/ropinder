@@ -34,6 +34,14 @@ model User {
   emailVerified Boolean @default(false)
   verified      Boolean @default(false)
   verifiedAt    DateTime?
+  // Badge now expires and must be renewed — see lib/auth.ts's expire-on-read
+  // check next to the existing premiumUntil one. Null while never verified
+  // or while verified via an admin grant that predates this field.
+  verifiedUntil DateTime?
+  // PERSONAL | STORE — a Store is still a User (same login/session/wallet),
+  // just with different credit/badge pricing and its own admin section
+  // (see lib/pricing.ts's per-accountType Config keys and /admin/tiendas).
+  accountType   String  @default("PERSONAL")
   termsAcceptedAt DateTime?
   // JSON string arrays — style/brand affinities picked during onboarding,
   // used to bias feed ranking (never a hard filter).
@@ -64,6 +72,7 @@ model User {
   bids             Bid[]
   configEdits      Config[]
   auditLogs        AdminAuditLog[]
+  savedSearches    SavedSearch[]
 }
 
 model ClothingItem {
@@ -75,7 +84,12 @@ model ClothingItem {
   condition   String
   category    String   @default("Ropa")
   style       String   @default("")
+  // Cover photo — kept as a plain string so every existing render site
+  // (feed, Ropero, admin tables) keeps working untouched. `images` below is
+  // the full gallery (imageUrl == images[0]); only the detail page and the
+  // publish form read it.
   imageUrl    String
+  images      String   @default("[]")
   price       Float?
   // VENTA | INTERCAMBIO | SUBASTA — un canje directo (Offer.offeredItemId)
   // sigue siendo posible sobre cualquier ítem sin importar este campo.
@@ -84,6 +98,11 @@ model ClothingItem {
   isBumped    Boolean  @default(false)
   bumpedAt    DateTime?
   isAd        Boolean  @default(false)
+  // VIP: paid direct-access listing. Unlocking one (credits, see
+  // lib/vip.ts) creates the Match right away instead of requiring the
+  // usual mutual-swipe — see ROADMAP "Loop 06" for why.
+  isVip       Boolean  @default(false)
+  vipAt       DateTime?
   archived    Boolean  @default(false)
   soldAt      DateTime?
   expiresAt   DateTime?
@@ -295,6 +314,22 @@ model Favorite {
   item ClothingItem @relation(fields: [itemId], references: [id])
 
   @@unique([userId, itemId])
+}
+
+// A standing filter a user wants to be notified about — query is a JSON
+// blob (category/size/brand/priceMax/etc.), matched against new listings by
+// a lib/savedSearch.ts helper, not by the DB (Turso/libSQL has no JSON
+// query operators worth relying on here, and the match set is small).
+model SavedSearch {
+  id        String   @id @default(cuid())
+  userId    String
+  query     String   @default("{}")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
 }
 
 model Notification {

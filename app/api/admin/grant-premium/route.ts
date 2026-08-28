@@ -15,14 +15,16 @@ export async function POST(req: NextRequest) {
   const target = await prisma.user.findUnique({ where: { email: email.trim() } });
   if (!target) return NextResponse.json({ error: "No existe ningún usuario con ese email" }, { status: 404 });
 
+  const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
   const base = target.isPremium && target.premiumUntil && target.premiumUntil > new Date() ? target.premiumUntil : new Date();
   const premiumUntil = new Date(base.getTime() + d * 24 * 60 * 60 * 1000);
+  const verifiedBase = target.verified && target.verifiedUntil && target.verifiedUntil > new Date() ? target.verifiedUntil : new Date();
 
   const user = await prisma.user.update({
     where: { id: target.id },
     data: {
       isPremium: true, premiumUntil, premiumPlan: "admin_grant",
-      ...(verified ? { verified: true, verifiedAt: new Date() } : {}),
+      ...(verified ? { verified: true, verifiedAt: new Date(), verifiedUntil: new Date(verifiedBase.getTime() + ONE_YEAR_MS) } : {}),
     },
     select: { id: true, email: true, premiumUntil: true },
   });

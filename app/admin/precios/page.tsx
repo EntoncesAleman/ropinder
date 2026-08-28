@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { PageHeader, Panel, TableWrap, Th, Td, Badge } from "@/components/admin/ui";
+import { PageHeader, Panel, TableWrap, Th, Td, Badge, FilterSelect } from "@/components/admin/ui";
 
 interface PackRow {
   id: string;
@@ -29,14 +29,15 @@ const inputCls = "w-28 border border-slate-200 rounded-md px-2.5 py-1.5 text-sm 
 
 export default function PreciosPage() {
   const { user } = useAuth();
+  const [accountType, setAccountType] = useState<"PERSONAL" | "STORE">("PERSONAL");
   const [packs, setPacks] = useState<PackRow[]>([]);
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
 
-  const fetchPacks = useCallback(async () => {
-    const res = await fetch("/api/admin/pricing");
+  const fetchPacks = useCallback(async (type: "PERSONAL" | "STORE") => {
+    const res = await fetch(`/api/admin/pricing?accountType=${type}`);
     if (res.ok) {
       const data: PackRow[] = await res.json();
       setPacks(data);
@@ -46,8 +47,8 @@ export default function PreciosPage() {
 
   useEffect(() => {
     if (user?.role !== "ADMIN") return;
-    Promise.resolve().then(() => fetchPacks());
-  }, [user, fetchPacks]);
+    Promise.resolve().then(() => fetchPacks(accountType));
+  }, [user, accountType, fetchPacks]);
 
   async function handleSave() {
     setBusy(true); setMsg(""); setErr("");
@@ -56,13 +57,13 @@ export default function PreciosPage() {
     );
     if (Object.keys(changed).length === 0) { setBusy(false); setMsg("Nada para guardar."); return; }
 
-    const res = await fetch("/api/admin/pricing", {
+    const res = await fetch(`/api/admin/pricing?accountType=${accountType}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ prices: changed }),
     });
     const data = await res.json();
-    if (res.ok) { setMsg("Guardado — aplica a partir de la próxima compra."); await fetchPacks(); }
+    if (res.ok) { setMsg("Guardado — aplica a partir de la próxima compra."); await fetchPacks(accountType); }
     else setErr(data.error ?? "Error");
     setBusy(false);
   }
@@ -70,6 +71,18 @@ export default function PreciosPage() {
   return (
     <div className="max-w-2xl mx-auto">
       <PageHeader title="Precios" subtitle="Precios en ARS de créditos, insignia verificada y planes Premium." />
+
+      <div className="mb-4">
+        <FilterSelect value={accountType} onChange={(e) => setAccountType(e.target.value as "PERSONAL" | "STORE")}>
+          <option value="PERSONAL">Usuarios personales</option>
+          <option value="STORE">Tiendas</option>
+        </FilterSelect>
+        {accountType === "STORE" && (
+          <p className="text-xs text-slate-400 mt-1.5">
+            Si no se edita un precio acá, la tienda paga lo mismo que un usuario personal — esto sobreescribe solo lo que cambies.
+          </p>
+        )}
+      </div>
 
       <Panel className="p-0 mb-4">
         <TableWrap>

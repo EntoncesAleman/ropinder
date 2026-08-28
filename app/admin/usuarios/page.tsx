@@ -1,12 +1,12 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { Download, Trash2 } from "lucide-react";
+import { Download, Trash2, Store } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { PageHeader, Toolbar, SearchInput, TableWrap, Th, Td, Badge, EmptyState, Panel } from "@/components/admin/ui";
 
 interface AdminUser {
-  id: string; name: string; fullName: string; email: string; phone: string; role: string;
+  id: string; name: string; fullName: string; email: string; phone: string; role: string; accountType: string;
   bannedAt: string | null; isPremium: boolean; premiumUntil: string | null; verified: boolean;
   credits: number; balance: number; ratingAvg: number; ratingCount: number; createdAt: string;
   _count: { clothingItems: number; transactions: number };
@@ -44,6 +44,14 @@ export default function UsuariosPage() {
     const res = await fetch(`/api/admin/users/${userId}/delete`, { method: "POST" });
     if (res.ok) await fetchUsers(q);
     setDeleteBusyId(null);
+  }
+
+  async function makeStore(email: string) {
+    if (!confirm(`¿Convertir a ${email} en cuenta Tienda? Va a pasar a la sección Tiendas, con sus propios precios de créditos e insignia.`)) return;
+    const res = await fetch("/api/admin/set-account-type", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, accountType: "STORE" }),
+    });
+    if (res.ok) await fetchUsers(q);
   }
 
   return (
@@ -98,6 +106,10 @@ export default function UsuariosPage() {
                 <Td className="text-slate-400">{new Date(u.createdAt).toLocaleDateString("es-AR")}</Td>
                 <Td>
                   <div className="flex items-center justify-end gap-2 flex-shrink-0">
+                    <button onClick={() => makeStore(u.email)} title="Convertir a cuenta Tienda"
+                      className="text-xs font-semibold text-slate-400 hover:text-rose-600 flex items-center gap-1">
+                      <Store size={12} />
+                    </button>
                     <button onClick={() => toggleBan(u.id, !u.bannedAt)} disabled={busyId === u.id}
                       className="text-xs font-semibold text-slate-500 hover:text-rose-600 disabled:opacity-50">
                       {u.bannedAt ? "Reactivar" : "Suspender"}

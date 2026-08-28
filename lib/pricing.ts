@@ -16,27 +16,38 @@ export const PACKS = {
 };
 
 export type PackId = keyof typeof PACKS;
+export type AccountType = "PERSONAL" | "STORE";
 
 const PACK_IDS = Object.keys(PACKS) as PackId[];
 
 function pricingConfigKey(id: PackId): string {
   return `pricing.${id}`;
 }
-
-export async function getPackPrice(id: PackId): Promise<number> {
-  return getConfigNumber(pricingConfigKey(id), PACKS[id].price);
+function storePricingConfigKey(id: PackId): string {
+  return `pricing.${id}.STORE`;
 }
 
-export async function setPackPrice(id: PackId, price: number, updatedById: string): Promise<void> {
-  await setConfigNumber(pricingConfigKey(id), price, updatedById);
+// Store price cascades on top of the personal price rather than straight to
+// the code default — so an admin who only bothers setting the personal
+// price still gets a sane store price, instead of silently reverting to a
+// stale hardcoded number.
+export async function getPackPrice(id: PackId, accountType: AccountType = "PERSONAL"): Promise<number> {
+  const personalPrice = await getConfigNumber(pricingConfigKey(id), PACKS[id].price);
+  if (accountType === "PERSONAL") return personalPrice;
+  return getConfigNumber(storePricingConfigKey(id), personalPrice);
+}
+
+export async function setPackPrice(id: PackId, price: number, updatedById: string, accountType: AccountType = "PERSONAL"): Promise<void> {
+  const key = accountType === "STORE" ? storePricingConfigKey(id) : pricingConfigKey(id);
+  await setConfigNumber(key, price, updatedById);
 }
 
 // Same shape as PACKS but with `price` overridden by whatever an admin has
 // configured — this is what checkout and the pricing page must read from,
 // never the raw PACKS constant, so the price charged always matches the
 // price shown.
-export async function getEffectivePacks(): Promise<Record<PackId, typeof PACKS[PackId] & { price: number }>> {
-  const prices = await Promise.all(PACK_IDS.map((id) => getPackPrice(id)));
+export async function getEffectivePacks(accountType: AccountType = "PERSONAL"): Promise<Record<PackId, typeof PACKS[PackId] & { price: number }>> {
+  const prices = await Promise.all(PACK_IDS.map((id) => getPackPrice(id, accountType)));
   return Object.fromEntries(PACK_IDS.map((id, i) => [id, { ...PACKS[id], price: prices[i] }])) as Record<
     PackId,
     (typeof PACKS)[PackId] & { price: number }

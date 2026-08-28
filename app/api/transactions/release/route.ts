@@ -3,8 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { getConfigNumber, CONFIG_KEYS } from "@/lib/config";
 import { DEFAULT_COMMISSION_STANDARD, DEFAULT_COMMISSION_PREMIUM, resolveCommissionRate, splitGrossCommission } from "@/lib/commission";
-
-const WITHDRAWAL_HOLD_HOURS = 48;
+import { withdrawalHoldHours } from "@/lib/withdrawal";
 
 export async function POST(req: NextRequest) {
   const session = await getSession();
@@ -35,7 +34,7 @@ export async function POST(req: NextRequest) {
   ]);
   const commissionRate = resolveCommissionRate(!!seller?.isPremium, standardRate, premiumRate);
 
-  const availableAt = new Date(Date.now() + WITHDRAWAL_HOLD_HOURS * 60 * 60 * 1000);
+  const availableAt = new Date(Date.now() + withdrawalHoldHours(!!seller?.isPremium) * 60 * 60 * 1000);
   const { commission, netAmount } = splitGrossCommission(tx.amount, commissionRate);
 
   await prisma.transaction.update({ where: { id: tx.id }, data: { status: "COMPLETED" } });

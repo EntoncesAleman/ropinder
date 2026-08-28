@@ -24,4 +24,6 @@ export const CONFIG_KEYS = {
   commissionStandard: "commission.standard",
   commissionPremium: "commission.premium",
   withdrawalFeeRate: "withdrawal.feeRate",
+  vipPublishCost: "vip.publishCost",
+  vipUnlockCost: "vip.unlockCost",
 } as const;

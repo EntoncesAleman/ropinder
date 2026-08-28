@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { notify } from "@/lib/notify";
 import { getSession } from "@/lib/auth";
+import { findOrCreateMatch } from "@/lib/match";
 
 export async function POST(request: NextRequest) {
   const session = await getSession();
@@ -48,17 +48,7 @@ export async function POST(request: NextRequest) {
 
   if (!ownerLike) return NextResponse.json({ match: false });
 
-  const existing = await prisma.match.findFirst({
-    where: { OR: [{ userAId: userId, userBId: ownerId }, { userAId: ownerId, userBId: userId }] },
-  });
-
-  let matchId = existing?.id;
-  if (!existing) {
-    const match = await prisma.match.create({ data: { userAId: userId, userBId: ownerId } });
-    matchId = match.id;
-    const swiper = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
-    await notify(ownerId, "MATCH", "¡Nuevo match!", `Hiciste match con ${swiper?.name ?? "alguien"}`, `/matches/${match.id}`);
-  }
+  const { matchId } = await findOrCreateMatch(userId, ownerId, "¡Nuevo match!", (name) => `Hiciste match con ${name}`);
 
   return NextResponse.json({ match: true, matchId, matchedWithUserId: ownerId });
 }

@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { ArrowLeft, Eye, Tag, Ruler, Star, ShieldCheck, Heart, CheckCircle2, MessageCircleQuestion, Send, Repeat } from "lucide-react";
+import { ArrowLeft, Eye, Tag, Ruler, Star, ShieldCheck, Heart, CheckCircle2, MessageCircleQuestion, Send, Repeat, Zap } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface Question {
@@ -22,8 +22,10 @@ interface ItemDetail {
   category: string;
   style: string;
   imageUrl: string;
+  images: string[];
   price: number | null;
   viewCount: number;
+  isVip: boolean;
   createdAt: string;
   userId: string;
   auction: { id: string } | null;
@@ -48,7 +50,9 @@ export default function ItemDetailPage({ params }: { params: Promise<{ id: strin
   const [item, setItem] = useState<ItemDetail | null>(null);
   const [liking, setLiking] = useState(false);
   const [liked, setLiked] = useState(false);
+  const [unlocking, setUnlocking] = useState(false);
   const [error, setError] = useState("");
+  const [photoIndex, setPhotoIndex] = useState(0);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [newQuestion, setNewQuestion] = useState("");
   const [askBusy, setAskBusy] = useState(false);
@@ -108,6 +112,14 @@ export default function ItemDetailPage({ params }: { params: Promise<{ id: strin
     setLiking(false);
   }
 
+  async function handleUnlockVip() {
+    setUnlocking(true);
+    const res = await fetch(`/api/clothes/${id}/vip-unlock`, { method: "POST" });
+    const data = await res.json();
+    if (res.ok) router.push(`/matches/${data.matchId}`);
+    else { alert(data.error); setUnlocking(false); }
+  }
+
   if (loading || (!item && !error)) return <div className="min-h-screen flex items-center justify-center text-slate-400 text-sm">Cargando...</div>;
   if (error || !item) return <div className="min-h-screen flex items-center justify-center text-slate-400 text-sm">{error}</div>;
 
@@ -116,10 +128,28 @@ export default function ItemDetailPage({ params }: { params: Promise<{ id: strin
   return (
     <div className="max-w-sm lg:max-w-5xl mx-auto pb-8 lg:pt-6 lg:px-8 lg:grid lg:grid-cols-2 lg:gap-10 lg:items-start">
       <div className="relative w-full aspect-square lg:rounded-2xl lg:overflow-hidden lg:sticky lg:top-6">
-        <Image src={item.imageUrl} alt={item.title} fill sizes="(max-width: 1024px) 384px, 480px" priority className="object-cover" />
+        <Image src={item.images[photoIndex] ?? item.imageUrl} alt={item.title} fill sizes="(max-width: 1024px) 384px, 480px" priority className="object-cover" />
         <Link href="/" aria-label="Volver" className="absolute top-4 left-4 bg-white/90 rounded-full p-2 shadow lg:hidden">
           <ArrowLeft size={18} className="text-slate-700" />
         </Link>
+        {item.images.length > 1 && (
+          <>
+            <div className="absolute top-4 inset-x-0 flex justify-center gap-1.5">
+              {item.images.map((_, i) => (
+                <button key={i} onClick={() => setPhotoIndex(i)} aria-label={`Ver foto ${i + 1}`}
+                  className={`h-1.5 rounded-full transition-all ${i === photoIndex ? "w-5 bg-white" : "w-1.5 bg-white/50"}`} />
+              ))}
+            </div>
+            <button onClick={() => setPhotoIndex((i) => (i - 1 + item.images.length) % item.images.length)} aria-label="Foto anterior"
+              className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 rounded-full p-1.5 shadow">
+              <ArrowLeft size={16} className="text-slate-700" />
+            </button>
+            <button onClick={() => setPhotoIndex((i) => (i + 1) % item.images.length)} aria-label="Foto siguiente"
+              className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 rounded-full p-1.5 shadow rotate-180">
+              <ArrowLeft size={16} className="text-slate-700" />
+            </button>
+          </>
+        )}
         <span className="absolute bottom-3 right-3 flex items-center gap-1 text-[11px] font-medium bg-black/60 text-white rounded-full px-2.5 py-1">
           <Eye size={11} /> {item.viewCount} visitas
         </span>
@@ -177,6 +207,14 @@ export default function ItemDetailPage({ params }: { params: Promise<{ id: strin
             </p>
           </div>
         </Link>
+
+        {!isMine && item.isVip && (
+          <motion.button whileTap={{ scale: 0.97 }} onClick={handleUnlockVip} disabled={unlocking}
+            className="w-full bg-gradient-to-r from-amber-500 to-rose-500 text-white font-semibold py-3.5 rounded-xl hover:opacity-90 transition disabled:opacity-60 flex items-center justify-center gap-2">
+            <Zap size={18} />
+            {unlocking ? "..." : "Desbloquear VIP — chat directo (5✦)"}
+          </motion.button>
+        )}
 
         {!isMine && (
           <motion.button whileTap={{ scale: 0.97 }} onClick={handleLike} disabled={liking || liked}

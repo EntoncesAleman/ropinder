@@ -1,5 +1,5 @@
 import {
-  BarChart3, Package, Gavel, Repeat, Receipt, Users, Flag, Wrench, Search, Percent, MessageCircle, ScrollText, Tag,
+  BarChart3, Package, Gavel, Repeat, Receipt, Users, Flag, Wrench, Search, Percent, MessageCircle, ScrollText, Tag, Store,
 } from "lucide-react";
 
 export interface AdminNavItem {
@@ -30,6 +30,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
   ] },
   { label: "Usuarios", items: [
     { href: "/admin/usuarios", label: "Usuarios", icon: Users },
+    { href: "/admin/tiendas", label: "Tiendas", icon: Store },
   ] },
   { label: "Finanzas", items: [
     { href: "/admin/comisiones", label: "Comisiones", icon: Percent },

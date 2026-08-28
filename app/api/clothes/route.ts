@@ -2,9 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { haversineKm } from "@/lib/haversine";
 import { getSession } from "@/lib/auth";
+import { notify } from "@/lib/notify";
 import { FREE_LISTING_LIFETIME_DAYS } from "@/lib/limits";
 import { STYLES } from "@/lib/catalog";
 import { clampRadiusKm, PREMIUM_MAX_RADIUS_KM } from "@/lib/searchRadius";
+import { SavedSearchQuery, matchesSavedSearch } from "@/lib/savedSearch";
+
+// Fire-and-forget so a slow/failing alert pass can never block or fail the
+// publish itself — same rule as logAdminAction's .catch(() => {}).
+async function notifyMatchingSavedSearches(item: { id: string; title: string; category: string; brand: string; size: string; style: string; price: number | null; userId: string }) {
+  const searches = await prisma.savedSearch.findMany({ where: { active: true, userId: { not: item.userId } } });
+  const matches = searches.filter((s) => matchesSavedSearch(JSON.parse(s.query) as SavedSearchQuery, item));
+  await Promise.all(matches.map((s) =>
+    notify(s.userId, "SAVED_SEARCH_MATCH", "Nueva prenda que buscabas", `"${item.title}" coincide con una de tus búsquedas guardadas.`, `/item/${item.id}`)
+  ));
+}
 
 const VALID_STYLE_IDS = new Set(STYLES.map((s) => s.id));
 const DISTANCE_BUCKET_KM = 5;
@@ -80,11 +92,19 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
 
   const body = await req.json();
-  const { title, description, size, brand, condition, category, style, imageUrl, price, listingType, auction } = body;
+  const { title, description, size, brand, condition, category, style, imageUrl, images, price, listingType, auction } = body;
   if (!title || !size || !brand || !condition || !imageUrl)
     return NextResponse.json({ error: "Faltan campos obligatorios" }, { status: 400 });
   if (style !== undefined && style !== "" && !VALID_STYLE_IDS.has(style))
     return NextResponse.json({ error: "Estilo inválido" }, { status: 400 });
+
+  // `images` is the full gallery; the caller is responsible for making
+  // imageUrl (the cover) equal images[0] — falls back to a single-photo
+  // gallery for callers that only send imageUrl.
+  const MAX_IMAGES = 6;
+  const gallery: string[] = Array.isArray(images) && images.length > 0 && images.every((u) => typeof u === "string" && u)
+    ? images.slice(0, MAX_IMAGES)
+    : [imageUrl];
 
   const isAuction = listingType === "SUBASTA";
   let auctionConfig: { startingPrice: number; minIncrement: number; durationHours: number } | null = null;
@@ -107,6 +127,7 @@ export async function POST(req: NextRequest) {
       category: category ?? "Ropa",
       style: style ?? "",
       imageUrl,
+      images: JSON.stringify(gallery),
       // Auctions own their price via the Auction record instead.
       price: isAuction ? null : price ? parseFloat(price) : null,
       listingType: isAuction ? "SUBASTA" : "VENTA",
@@ -138,6 +159,8 @@ export async function POST(req: NextRequest) {
   await prisma.transaction.create({
     data: { userId: session.id, amount: 0, type: "CREDIT_PURCHASE", status: "COMPLETED", meta: JSON.stringify({ note: "+2 créditos por publicar prenda", itemId: item.id }) },
   });
+
+  if (!isAuction) notifyMatchingSavedSearches(item).catch(() => {});
 
   return NextResponse.json({ item, creditsEarned: 2 }, { status: 201 });
 }

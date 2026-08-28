@@ -1,7 +1,17 @@
-// availableAt already marks release + 48h. Withdrawing between that and
-// +24h more (i.e. release + 72h) costs a fee; after that it's free.
+// availableAt marks release + hold (48h standard, 24h Premium — see
+// withdrawalHoldHours). Withdrawing between that and +24h more (i.e. 72h/48h
+// total from release) costs a fee; after that it's free.
 const FEE_WINDOW_HOURS = 24;
 export const WITHDRAWAL_FEE_RATE = 0.05;
+const STANDARD_HOLD_HOURS = 48;
+const PREMIUM_HOLD_HOURS = 24;
+
+// Premium sellers get their money fully fee-free a day sooner (2 days
+// total instead of 3) — the fee window itself doesn't change, only how
+// long funds sit locked before that window even starts.
+export function withdrawalHoldHours(isPremium: boolean): number {
+  return isPremium ? PREMIUM_HOLD_HOURS : STANDARD_HOLD_HOURS;
+}
 
 export function feeFreeAt(availableAt: Date): Date {
   return new Date(availableAt.getTime() + FEE_WINDOW_HOURS * 60 * 60 * 1000);

@@ -25,11 +25,18 @@ function fmtPrice(n: number | undefined): string {
   return n === undefined ? "..." : `$${n.toLocaleString("es-AR")}`;
 }
 
-const PREMIUM_FEATURES = [
-  "Swipes ilimitados",
-  "Comisión reducida al 5% en tus ventas (vs. 8% estándar)",
-  "Tus prendas aparecen primero en la búsqueda",
-];
+// La comisión es admin-editable (/admin/comisiones) — este texto se arma con
+// el valor real de Config, nunca un porcentaje fijo en el código (ver
+// ROPINDER_ROADMAP.md: ya pasó que este número quedó desactualizado).
+function premiumFeatures(commissionStandard: number | undefined, commissionPremium: number | undefined): string[] {
+  const std = commissionStandard !== undefined ? `${(commissionStandard * 100).toFixed(0)}%` : "...";
+  const prem = commissionPremium !== undefined ? `${(commissionPremium * 100).toFixed(0)}%` : "...";
+  return [
+    "Swipes ilimitados",
+    `Comisión reducida al ${prem} en tus ventas (vs. ${std} estándar)`,
+    "Tus prendas aparecen primero en la búsqueda",
+  ];
+}
 
 export default function PremiumPage() {
   const { user, refresh } = useAuth();
@@ -40,6 +47,8 @@ export default function PremiumPage() {
   const [modalPack, setModalPack] = useState<{ id: string; label: string; price: string } | null>(null);
   const [pendingNotice, setPendingNotice] = useState(false);
   const [prices, setPrices] = useState<Record<string, number>>({});
+  const [commissionStandard, setCommissionStandard] = useState<number | undefined>(undefined);
+  const [commissionPremium, setCommissionPremium] = useState<number | undefined>(undefined);
 
   useEffect(() => {
     if (user?.role === "ADMIN") router.push("/admin");
@@ -47,7 +56,11 @@ export default function PremiumPage() {
 
   useEffect(() => {
     fetch("/api/pricing").then((res) => res.ok ? res.json() : null).then((data) => {
-      if (data) setPrices(Object.fromEntries(Object.entries(data.packs).map(([id, p]) => [id, (p as { price: number }).price])));
+      if (data) {
+        setPrices(Object.fromEntries(Object.entries(data.packs).map(([id, p]) => [id, (p as { price: number }).price])));
+        setCommissionStandard(data.commissionStandard);
+        setCommissionPremium(data.commissionPremium);
+      }
     });
   }, []);
 
@@ -106,7 +119,7 @@ export default function PremiumPage() {
           )}
         </div>
         <ul className="flex flex-col gap-1 mb-3">
-          {PREMIUM_FEATURES.map((f) => (
+          {premiumFeatures(commissionStandard, commissionPremium).map((f) => (
             <li key={f} className="flex items-start gap-1.5 text-xs text-slate-500">
               <CheckCircle size={12} className="text-emerald-500 mt-0.5 flex-shrink-0" /> {f}
             </li>

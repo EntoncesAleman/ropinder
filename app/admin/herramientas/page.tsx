@@ -154,7 +154,7 @@ export default function HerramientasPage() {
 
         <Panel className="p-4">
           <p className="text-xs font-bold text-slate-600 flex items-center gap-1.5 mb-2"><Zap size={13} /> Acreditar créditos manualmente</p>
-          <p className="text-[11px] text-slate-400 mb-2">Usalo cuando confirmes en MercadoPago que llegó una transferencia y todavía no está automatizado el alta de créditos.</p>
+          <p className="text-[11px] text-slate-400 mb-2">Usalo cuando confirmes que llegó una transferencia (por fuera de la app) y todavía no está automatizado el alta de créditos.</p>
           <div className="flex flex-col gap-2">
             <input value={grantEmail} onChange={(e) => setGrantEmail(e.target.value)} placeholder="email@ejemplo.com" className={inputCls} />
             <div className="flex gap-2">

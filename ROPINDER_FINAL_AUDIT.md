@@ -10,7 +10,7 @@ Generated at the close of the ROPINDER_BIBLE Master Orchestrator run (steps 1-11
 | Guided chat + question bank (Loop 04) | Real — `ChatCategory`/`ChatQuestion`/`ChatAnswer`, admin editor at `/admin/chat`, tap-to-send quick replies additive to free text |
 | Accessibility pass (Loop 05) | Partial — icon-only controls now labeled; color contrast and full keyboard-nav audit still open |
 | Search radius by plan (Loop 02) | Real — server-enforced in `/api/clothes`, not just client-side UI |
-| FinancialProviderAdapter (Loop 01) | Real architecture, mock implementation — every money-in/money-out call site goes through `getFinancialProvider()`; swapping in MercadoPago later is a one-function change |
+| FinancialProviderAdapter (Loop 01) | Real architecture, mock implementation — every money-in/money-out call site goes through `getFinancialProvider()`; swapping in a real provider later is a one-function change (not MercadoPago — that's a separate manual deposit/withdrawal flow, see Financial integration status) |
 | Admin audit log (Loop 03) | Real — `AdminAuditLog`, wired into all 12 sensitive admin actions, viewable at `/admin/logs`, synced to production Turso |
 | Configurable pack pricing (Loop 03) | Real — `/admin/precios`, closes a drift bug where `/premium` and `/api/checkout` could disagree on price |
 | Integration tests (step 8) | Real — 11 new tests against a real throwaway SQLite DB, covering the Config → Commission → Financial transaction → Wallet/Ledger → Admin → Audit Log chain the orchestrator's own dependency graph describes |
@@ -41,7 +41,7 @@ Full audit method and clean-check list live in the security-audit agent's findin
 
 ## Financial integration status
 
-No real payment provider is connected. `MockFinancialProvider` (`lib/financialProvider.ts`) simulates every `charge`/`payout`/`refund` call with a real, traceable `providerRef` but never moves actual money. Every money-moving call site (`checkout`, `matches/[id]/pay`, `closeAuction`, withdrawal approval, refunds) already goes through the single `getFinancialProvider()` seam, so connecting MercadoPago (the only viable Argentina payout option — Stripe's Marketplace listing doesn't support AR payouts) later means writing one new class and changing one function, not touching call sites. This was an explicit, deliberate decision this session ("sacar mercado pago de la ecuación y seguir lo que dice el loop fintech") — not an oversight.
+No real payment provider is connected for the in-app payment/escrow flow. `MockFinancialProvider` (`lib/financialProvider.ts`) simulates every `charge`/`payout`/`refund` call with a real, traceable `providerRef` but never moves actual money. Every money-moving call site (`checkout`, `matches/[id]/pay`, `closeAuction`, withdrawal approval, refunds) already goes through the single `getFinancialProvider()` seam, so connecting a real provider later means writing one new class and changing one function, not touching call sites. This was an explicit, deliberate decision this session ("sacar mercado pago de la ecuación y seguir lo que dice el loop fintech") — not an oversight. MercadoPago is *not* that provider: per later clarification, MercadoPago is only how the business itself deposits/withdraws money outside the app (an admin confirms a transfer arrived and manually credits the user — see `/admin/herramientas`), not something the app's payment logic talks to.
 
 ## Tests
 
@@ -59,11 +59,11 @@ No real payment provider is connected. `MockFinancialProvider` (`lib/financialPr
 - Production: `ropinder.vercel.app`, auto-deploys from `master` via GitHub integration. No manual deploy step needed.
 - Turso schema drift is managed by hand-written, additive (`CREATE TABLE IF NOT EXISTS`) sync scripts in `scripts/sync-*-schema-turso.ts`, run manually against production only after explicit user authorization, with before/after row-count verification. The `AdminAuditLog` table was synced this session following that protocol.
 - No new environment variables required by this cycle's work — `AdminAuditLog` and pricing config reuse the existing `TURSO_DATABASE_URL`/`TURSO_AUTH_TOKEN`/`DATABASE_URL` setup.
-- A real payment provider (MercadoPago) is the only external integration still pending — requires the user to create the merchant account and share credentials; the code side is ready (see Financial integration status above).
+- A real in-app payment provider is the only external integration still pending for the escrow/checkout flow — which provider is TBD (not MercadoPago, which is a separate manual deposit/withdrawal flow, not an app integration); the code side is ready (see Financial integration status above).
 
 ## Recommended next steps
 
-1. **Connect MercadoPago** — the highest-leverage next step; unblocks the Bible's funding-method commission matrix (10/15/20%) and makes the whole financial stack real instead of simulated.
+1. **Connect a real in-app payment provider** — the highest-leverage next step; unblocks the Bible's funding-method commission matrix (10/15/20%) and makes the whole financial stack real instead of simulated. Not MercadoPago (see Financial integration status) — provider TBD.
 2. **Rate-limit checkout/pay/withdraw** — cheap to add (`lib/ratelimit.ts` already exists as a pattern), becomes actually important once real money is at stake.
 3. Revisit the `Operation`/dispute-center gap once there's real transaction volume to justify the modeling work — premature before that.
 4. Finish the Loop 05 accessibility pass: color contrast audit and full keyboard-navigation pass weren't done this session (need manual/tool-assisted review, not just grep).

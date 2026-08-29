@@ -3,8 +3,11 @@ import { randomUUID } from "crypto";
 // FinancialProviderAdapter (ROPINDER_BIBLE/LOOPS/01-FINTECH-WALLET.md §8-9):
 // every money-in/money-out call site goes through this interface instead of
 // touching a payment API directly, so swapping in a real provider later
-// (MercadoPago or otherwise) means changing getFinancialProvider() once,
-// not every call site. Frontend never imports this — it's server-only.
+// means changing getFinancialProvider() once, not every call site. This is
+// specifically the in-app payment/escrow flow — not the same thing as a
+// user depositing/withdrawing to their bank via MercadoPago, which is a
+// separate manual flow (see app/admin/herramientas). Frontend never imports
+// this — it's server-only.
 
 export interface ChargeParams {
   userId: string;

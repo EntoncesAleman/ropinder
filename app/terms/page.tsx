@@ -36,7 +36,7 @@ export default function TermsPage() {
 
         <section>
           <h2 className="font-bold text-slate-800 mb-1">5. Pagos y custodia (escrow)</h2>
-          <p>Cuando una compra se paga dentro de la app, el dinero queda retenido por Ropinder en custodia hasta que el comprador confirma haber recibido la prenda. Recién ahí se libera el pago al vendedor, menos la comisión de la plataforma. Los fondos liberados quedan disponibles para retiro 48 horas después de la liberación; retirar entre las 48 y 72 horas tiene un cargo adicional, y después de 72 horas el retiro no tiene cargo.</p>
+          <p>Cuando una compra se paga dentro de la app, el dinero queda retenido por Ropinder en custodia hasta que el comprador confirma haber recibido la prenda. Recién ahí se libera el pago al vendedor, menos la comisión de la plataforma, como saldo dentro de la plataforma. Los saldos y créditos acumulados en Ropinder representan créditos de consumo interno de la plataforma: no constituyen depósitos en cuenta bancaria a nombre del usuario, no generan intereses ni rendimientos, y no son una cuenta de pago administrada por Ropinder en los términos de la normativa del BCRA — el dinero real que los respalda se mantiene en una cuenta de recaudación de la plataforma hasta el momento en que el usuario solicita transferirlo a su propio CBU/CVU. Los fondos liberados quedan disponibles para esa transferencia 48 horas después de la liberación (24 horas para cuentas Premium); retirar dentro de las primeras 24 horas desde que quedan disponibles tiene un cargo adicional según la tarifa vigente, y después ese cargo no aplica.</p>
         </section>
 
         <section>
